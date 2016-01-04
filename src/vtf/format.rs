@@ -85,7 +85,7 @@ pub type Header71 = Header70;
 ///Size: 16
 #[derive(Default, Debug)]
 #[repr(C)]
-pub struct RootHeaderRaw {
+struct RootHeaderRaw {
     type_string: [u8; 4],
     version: [u8; 8],
     header_size: [u8; 4]
@@ -96,7 +96,7 @@ pub struct RootHeaderRaw {
 ///Size: 47
 #[derive(Default, Debug)]
 #[repr(C)]
-pub struct Header70PartRaw {
+struct Header70PartRaw {
     width: [u8; 2],
     height: [u8; 2],
     flags: [u8; 4],
