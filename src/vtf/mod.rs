@@ -6,7 +6,7 @@ mod format;
 
 pub fn open(path: &str) {
     let mut file = File::open(path).unwrap();
-    let header70 = format::Header70::open(&mut file).unwrap();
+    let header73 = format::Header73::open(&mut file).unwrap();
 
-    println!("{:#?}", header70);
+    println!("{:#?}", header73);
 }
