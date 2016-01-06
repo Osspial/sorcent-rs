@@ -4,6 +4,8 @@ use std::mem;
 #[allow(dead_code)]
 mod format;
 
+use self::format::Header;
+
 
 pub fn open(path: &str) {
     let mut file = File::open(path).unwrap();
