@@ -18,7 +18,7 @@ pub struct Header70 {
 }
 
 impl Header for Header70 {
-    fn open<R>(source: &mut R) -> Result<Header70, HeaderLoadError> 
+    fn load<R>(source: &mut R) -> Result<Header70, HeaderLoadError> 
       where R: Read {
         use std::mem::transmute;
 
@@ -74,10 +74,10 @@ pub struct Header72 {
 
 
 impl Header for Header72 {
-    fn open<R>(source: &mut R) -> Result<Header72, HeaderLoadError> where R: Read {
+    fn load<R>(source: &mut R) -> Result<Header72, HeaderLoadError> where R: Read {
         use std::mem::transmute;
 
-        let header70 = try!(Header70::open(source));
+        let header70 = try!(Header70::load(source));
 
 
         let mut header72_buffer: [u8; 2] = [0; 2];
@@ -105,10 +105,10 @@ pub struct Header73 {
 }
 
 impl Header for Header73 {
-    fn open<R>(source: &mut R) -> Result<Header73, HeaderLoadError> where R: Read {
+    fn load<R>(source: &mut R) -> Result<Header73, HeaderLoadError> where R: Read {
         use std::mem::transmute;
 
-        let header72 = try!(Header72::open(source));
+        let header72 = try!(Header72::load(source));
 
 
         let mut header73_buffer: [u8; 7] = [0; 7];
@@ -130,7 +130,7 @@ pub type Header75 = Header74;
 pub trait Header 
     where Self: Sized {
 
-    fn open<R>(source: &mut R) -> Result<Self, HeaderLoadError> where R: Read;
+    fn load<R>(source: &mut R) -> Result<Self, HeaderLoadError> where R: Read;
 }
 
 
@@ -306,20 +306,44 @@ struct HeaderPart73Raw {
     resource_count: [u8; 4]
 }
 
-fn make_vtf_rsrc_id(a: i32, b: i32, c: i32) -> i32 {
+/*
+//Functions used to compute the resource IDs.
+//Commented out as they are hard-coded into the enum as rust
+//doesn't support compile-time function evaluation
+
+fn make_vtf_rsrc_id(a: u8, b: u8, c: u8) -> i32 {
+    let (a, b, c) = (a as i32, b as i32, c as i32);
+
     (a | b << 8 | c << 16) as i32
 }
 
-fn make_vtf_rsrc_idf(a: i32, b: i32, c: i32, f: i32) -> i32 {
+fn make_vtf_rsrc_idf(a: u8, b: u8, c: u8, f: u8) -> i32 {
+    let (a, b, c, f) = (a as i32, b as i32, c as i32, f as i32);
+
     (a | b << 8 | c << 16 | f << 24) as i32
 }
+*/
 
+const RSRC_NO_DATA_CHUNK: u8 = 0x02;
+
+#[derive(Debug)]
+#[repr(u32)]
 enum VTFResourceType {
-    LegacyLowResImage, //make_vtf_rsrc_id(0x01, 0, 0)
-    LegacyImage, //make_vtf_rsrc_id(0x30, 0, 0)
-    Sheet, //make_vtf_rsrc_id(0x10, 0, 0)
-    Crc, //make_vtf_rsrc_id(b'C', b'R', b'C')
+    LegacyLowResImage       = 0x01, //make_vtf_rsrc_id(0x01, 0, 0)
+    LegacyImage             = 0x30, //make_vtf_rsrc_id(0x30, 0, 0)
+    Sheet                   = 0x10, //make_vtf_rsrc_id(0x10, 0, 0)
+    Crc                     = 0x02435243, //make_vtf_rsrc_idf('C', 'R', 'C', RSRC_NO_DATA_CHUNK)
+    TextureLODSettings      = 0x02444f4c, //make_vtf_rsrc_idf('L', 'O', 'D', RSRC_NO_DATA_CHUNK)
+    TextureSettingsEx       = 0x024f5354, //make_vtf_rsrc_idf('T', 'S', 'O', RSRC_NO_DATA_CHUNK)
+    KeyValueData            = 0x0044564b, //make_vtf_rsrc_id('K', 'V', 'D')
+    MaxDictionaryEntries    = 32, //32
+    Default //Used to specify a default value
+}
 
+impl Default for VTFResourceType {
+    fn default() -> Self {
+        VTFResourceType::Default
+    }
 }
 
 

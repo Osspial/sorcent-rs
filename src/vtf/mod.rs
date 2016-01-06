@@ -20,7 +20,7 @@ pub fn open(path: &str) {
         panic!("File too small for it's header!");
     }
 
-    let header73 = format::Header73::open(&mut file).unwrap();
+    let header73 = format::Header73::load(&mut file).unwrap();
 
     println!("{:#?}", header73);
 }
