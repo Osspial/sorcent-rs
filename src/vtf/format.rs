@@ -6,6 +6,10 @@ use std::io::Read;
 use std::error;
 use std::fmt;
 
+use std::mem;
+
+use num::FromPrimitive;
+
 
 #[derive(Debug)]
 pub struct Header70 {
@@ -44,9 +48,11 @@ impl Header70 {
                 start_frame: transmute(h70.start_frame),
                 reflectivity: transmute(h70.reflectivity),
                 bump_scale: transmute(h70.bump_scale),
-                image_format: transmute(h70.image_format),
+                image_format: try!(VTFImageFormat::from_i32(transmute(h70.image_format))
+                                .ok_or(HeaderLoadError::Vtf(VTFError::HeaderImageFormat))),
                 mip_count: h70.mip_count,
-                thumbnail_format: transmute(h70.thumbnail_format),
+                thumbnail_format: try!(VTFImageFormat::from_i32(transmute(h70.thumbnail_format))
+                                .ok_or(HeaderLoadError::Vtf(VTFError::HeaderImageFormat))),
                 thumbnail_width: h70.thumbnail_width,
                 thumbnail_height: h70.thumbnail_height
             } 
@@ -133,11 +139,12 @@ pub struct RootHeader {
 
 impl RootHeader {
     fn verify(&self) -> Result<(), VTFError> {
-        if self.type_string != [0x56, 0x54, 0x46, 0x00] {
-            Err(VTFError::new(VTFErrorType::HeaderSignature))
+        let magic_number: [i8; 4] = unsafe{ mem::transmute(*b"VTF\0") };
+        if self.type_string != magic_number {
+            Err(VTFError::HeaderSignature)
         }
         else if self.version[0] != 7 || match self.version[1] {1 ... 5 => false, _ => true} {
-            Err(VTFError::new(VTFErrorType::HeaderVersion))
+            Err(VTFError::HeaderVersion)
         } else {
             Ok(())
         }
@@ -164,7 +171,7 @@ impl HeaderPart70 {
     fn verify(&self) -> Result<(), VTFError> {
         //Checks to see if width or hight is not a power of two
         if !(self.width.is_power_of_two() || self.height.is_power_of_two()) {
-            Err(VTFError::new(VTFErrorType::ImageSizeError))
+            Err(VTFError::ImageSizeError)
         } else {
             Ok(())
         }
@@ -206,21 +213,21 @@ impl error::Error for HeaderLoadError {
     }
 }
 
-#[derive(Debug)]
-pub struct VTFError {
-    error_type: VTFErrorType
+#[derive(Debug, Clone, Eq, PartialEq, Copy)]
+pub enum VTFError {
+    HeaderSignature,
+    HeaderVersion,
+    HeaderImageFormat,
+    ImageSizeError
 }
 
 impl VTFError {
-    fn new(error_type: VTFErrorType) -> VTFError{
-        VTFError{ error_type: error_type }
-    }
-
     fn __description(&self) -> &str {
-        match self.error_type {
-            VTFErrorType::HeaderSignature => "Invalid Header; Signature does not match VTF",
-            VTFErrorType::HeaderVersion => "Invalid Header; File version does not match 7.0 - 7.5",
-            VTFErrorType::ImageSizeError => "Image width or height is not power of two"
+        match self {
+            &VTFError::HeaderSignature => "Invalid Header; Signature does not match VTF",
+            &VTFError::HeaderVersion => "Invalid Header; File version does not match 7.0 - 7.5",
+            &VTFError::HeaderImageFormat => "Invalid Header; Invalid image format",
+            &VTFError::ImageSizeError => "Image width or height is not power of two"
         }
     }
 }
@@ -237,12 +244,7 @@ impl error::Error for VTFError {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Copy)]
-pub enum VTFErrorType {
-    HeaderSignature,
-    HeaderVersion,
-    ImageSizeError
-}
+
 
 
 
@@ -297,6 +299,22 @@ struct HeaderPart73Raw {
     resource_count: [u8; 4]
 }
 
+fn make_vtf_rsrc_id(a: i32, b: i32, c: i32) -> i32 {
+    (a | b << 8 | c << 16) as i32
+}
+
+fn make_vtf_rsrc_idf(a: i32, b: i32, c: i32, f: i32) -> i32 {
+    (a | b << 8 | c << 16 | f << 24) as i32
+}
+
+enum VTFResourceType {
+    LegacyLowResImage, //make_vtf_rsrc_id(0x01, 0, 0)
+    LegacyImage, //make_vtf_rsrc_id(0x30, 0, 0)
+    Sheet, //make_vtf_rsrc_id(0x10, 0, 0)
+    Crc, //make_vtf_rsrc_id(b'C', b'R', b'C')
+
+}
+
 
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
@@ -348,5 +366,61 @@ pub enum VTFImageFormat {
 impl Default for VTFImageFormat {
     fn default() -> Self {
         VTFImageFormat::IMAGE_FORMAT_NONE
+    }
+}
+
+impl FromPrimitive for VTFImageFormat {
+    fn from_i64(n: i64) -> Option<VTFImageFormat> {
+        match n {
+            0 => Some(VTFImageFormat::IMAGE_FORMAT_RGBA8888),
+            1 => Some(VTFImageFormat::IMAGE_FORMAT_ABGR8888),
+            2 => Some(VTFImageFormat::IMAGE_FORMAT_RGB888),
+            3 => Some(VTFImageFormat::IMAGE_FORMAT_BGR888),
+            4 => Some(VTFImageFormat::IMAGE_FORMAT_RGB565),
+            5 => Some(VTFImageFormat::IMAGE_FORMAT_I8),
+            6 => Some(VTFImageFormat::IMAGE_FORMAT_IA88),
+            7 => Some(VTFImageFormat::IMAGE_FORMAT_P8),
+            8 => Some(VTFImageFormat::IMAGE_FORMAT_A8),
+            9 => Some(VTFImageFormat::IMAGE_FORMAT_RGB888_BLUESCREEN),
+            10 => Some(VTFImageFormat::IMAGE_FORMAT_BGR888_BLUESCREEN),
+            11 => Some(VTFImageFormat::IMAGE_FORMAT_ARGB8888),
+            12 => Some(VTFImageFormat::IMAGE_FORMAT_BGRA8888),
+            13 => Some(VTFImageFormat::IMAGE_FORMAT_DXT1),
+            14 => Some(VTFImageFormat::IMAGE_FORMAT_DXT3),
+            15 => Some(VTFImageFormat::IMAGE_FORMAT_DXT5),
+            16 => Some(VTFImageFormat::IMAGE_FORMAT_BGRX8888),
+            17 => Some(VTFImageFormat::IMAGE_FORMAT_BGR565),
+            18 => Some(VTFImageFormat::IMAGE_FORMAT_BGRX5551),
+            19 => Some(VTFImageFormat::IMAGE_FORMAT_BGRA4444),
+            20 => Some(VTFImageFormat::IMAGE_FORMAT_DXT1_ONEBITALPHA),
+            21 => Some(VTFImageFormat::IMAGE_FORMAT_BGRA5551),
+            22 => Some(VTFImageFormat::IMAGE_FORMAT_UV88),
+            23 => Some(VTFImageFormat::IMAGE_FORMAT_UVWQ8888),
+            24 => Some(VTFImageFormat::IMAGE_FORMAT_RGBA16161616F),
+            25 => Some(VTFImageFormat::IMAGE_FORMAT_RGBA16161616),
+            26 => Some(VTFImageFormat::IMAGE_FORMAT_UVLX8888),
+            27 => Some(VTFImageFormat::IMAGE_FORMAT_R32F),
+            28 => Some(VTFImageFormat::IMAGE_FORMAT_RGB323232F),
+            29 => Some(VTFImageFormat::IMAGE_FORMAT_RGBA32323232F),
+            30 => Some(VTFImageFormat::IMAGE_FORMAT_NV_DST16),
+            31 => Some(VTFImageFormat::IMAGE_FORMAT_NV_DST24),                  
+            32 => Some(VTFImageFormat::IMAGE_FORMAT_NV_INTZ),
+            33 => Some(VTFImageFormat::IMAGE_FORMAT_NV_RAWZ),
+            34 => Some(VTFImageFormat::IMAGE_FORMAT_ATI_DST16),
+            35 => Some(VTFImageFormat::IMAGE_FORMAT_ATI_DST24),
+            36 => Some(VTFImageFormat::IMAGE_FORMAT_NV_NULL),
+            37 => Some(VTFImageFormat::IMAGE_FORMAT_ATI2N),                     
+            38 => Some(VTFImageFormat::IMAGE_FORMAT_ATI1N),
+            39 => Some(VTFImageFormat::IMAGE_FORMAT_COUNT),
+            -1 => Some(VTFImageFormat::IMAGE_FORMAT_NONE),
+            _ => None
+        }
+    }
+
+    fn from_u64(n: u64) -> Option<VTFImageFormat> {
+        match n {
+            0 ... 40 => VTFImageFormat::from_i64(n as i64),
+            _ => None
+        }
     }
 }
