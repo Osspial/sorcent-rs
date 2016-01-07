@@ -47,10 +47,10 @@ impl Header for Header70 {
                 start_frame: transmute(h70.start_frame),
                 reflectivity: transmute(h70.reflectivity),
                 bump_scale: transmute(h70.bump_scale),
-                image_format: try!(VTFImageFormat::from_i32(transmute(h70.image_format))
+                image_format: try!(ImageFormat::from_i32(transmute(h70.image_format))
                                 .ok_or(VTFLoadError::VTF(VTFError::HeaderImageFormat))),
                 mip_count: h70.mip_count,
-                thumbnail_format: try!(VTFImageFormat::from_i32(transmute(h70.thumbnail_format))
+                thumbnail_format: try!(ImageFormat::from_i32(transmute(h70.thumbnail_format))
                                 .ok_or(VTFLoadError::VTF(VTFError::HeaderImageFormat))),
                 thumbnail_width: h70.thumbnail_width,
                 thumbnail_height: h70.thumbnail_height
@@ -167,9 +167,9 @@ pub struct HeaderPart70 {
     pub start_frame         :c_ushort, 
     pub reflectivity        :[c_float; 3],
     pub bump_scale          :c_float,
-    pub image_format        :VTFImageFormat,
+    pub image_format        :ImageFormat,
     pub mip_count           :u8,
-    pub thumbnail_format    :VTFImageFormat,
+    pub thumbnail_format    :ImageFormat,
     pub thumbnail_width     :u8,
     pub thumbnail_height    :u8
 }
@@ -221,7 +221,7 @@ impl error::Error for VTFLoadError {
 }
 
 struct Resource {
-    rtype       :VTFResourceType,
+    rtype       :ResourceType,
     flags       :u8,
     data        :u32
 }
@@ -356,7 +356,7 @@ const RSRC_NO_DATA_CHUNK: u8 = 0x02;
 
 #[derive(Debug)]
 #[repr(u32)]
-pub enum VTFResourceType {
+pub enum ResourceType {
     LegacyLowResImage       = 0x01, //make_vtf_rsrc_id(0x01, 0, 0)
     LegacyImage             = 0x30, //make_vtf_rsrc_id(0x30, 0, 0)
     Sheet                   = 0x10, //make_vtf_rsrc_id(0x10, 0, 0)
@@ -367,23 +367,23 @@ pub enum VTFResourceType {
     MaxDictionaryEntries    = 32, //32
 }
 
-impl FromPrimitive for VTFResourceType {
-    fn from_i64(n: i64) -> Option<VTFResourceType> {
+impl FromPrimitive for ResourceType {
+    fn from_i64(n: i64) -> Option<ResourceType> {
         match n {
-            0x01        => Some(VTFResourceType::LegacyLowResImage),
-            0x30        => Some(VTFResourceType::LegacyImage),
-            0x10        => Some(VTFResourceType::Sheet),
-            0x435243    => Some(VTFResourceType::Crc),
-            0x444f4c    => Some(VTFResourceType::TextureLODSettings),
-            0x4f5354    => Some(VTFResourceType::TextureSettingsEx),
-            0x44564b    => Some(VTFResourceType::KeyValueData),
-            32          => Some(VTFResourceType::MaxDictionaryEntries),
+            0x01        => Some(ResourceType::LegacyLowResImage),
+            0x30        => Some(ResourceType::LegacyImage),
+            0x10        => Some(ResourceType::Sheet),
+            0x435243    => Some(ResourceType::Crc),
+            0x444f4c    => Some(ResourceType::TextureLODSettings),
+            0x4f5354    => Some(ResourceType::TextureSettingsEx),
+            0x44564b    => Some(ResourceType::KeyValueData),
+            32          => Some(ResourceType::MaxDictionaryEntries),
             _           => None
         }
     }
 
-    fn from_u64(n: u64) -> Option<VTFResourceType> {
-        VTFResourceType::from_i64(n as i64)
+    fn from_u64(n: u64) -> Option<ResourceType> {
+        ResourceType::from_i64(n as i64)
     }
 }
 
@@ -391,7 +391,7 @@ impl FromPrimitive for VTFResourceType {
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
 #[repr(i32)]
-pub enum VTFImageFormat {
+pub enum ImageFormat {
     IMAGE_FORMAT_RGBA8888 = 0,
     IMAGE_FORMAT_ABGR8888,
     IMAGE_FORMAT_RGB888,
@@ -435,57 +435,57 @@ pub enum VTFImageFormat {
     IMAGE_FORMAT_NONE = -1
 }
 
-impl FromPrimitive for VTFImageFormat {
-    fn from_i64(n: i64) -> Option<VTFImageFormat> {
+impl FromPrimitive for ImageFormat {
+    fn from_i64(n: i64) -> Option<ImageFormat> {
         match n {
-            0  => Some(VTFImageFormat::IMAGE_FORMAT_RGBA8888),
-            1  => Some(VTFImageFormat::IMAGE_FORMAT_ABGR8888),
-            2  => Some(VTFImageFormat::IMAGE_FORMAT_RGB888),
-            3  => Some(VTFImageFormat::IMAGE_FORMAT_BGR888),
-            4  => Some(VTFImageFormat::IMAGE_FORMAT_RGB565),
-            5  => Some(VTFImageFormat::IMAGE_FORMAT_I8),
-            6  => Some(VTFImageFormat::IMAGE_FORMAT_IA88),
-            7  => Some(VTFImageFormat::IMAGE_FORMAT_P8),
-            8  => Some(VTFImageFormat::IMAGE_FORMAT_A8),
-            9  => Some(VTFImageFormat::IMAGE_FORMAT_RGB888_BLUESCREEN),
-            10 => Some(VTFImageFormat::IMAGE_FORMAT_BGR888_BLUESCREEN),
-            11 => Some(VTFImageFormat::IMAGE_FORMAT_ARGB8888),
-            12 => Some(VTFImageFormat::IMAGE_FORMAT_BGRA8888),
-            13 => Some(VTFImageFormat::IMAGE_FORMAT_DXT1),
-            14 => Some(VTFImageFormat::IMAGE_FORMAT_DXT3),
-            15 => Some(VTFImageFormat::IMAGE_FORMAT_DXT5),
-            16 => Some(VTFImageFormat::IMAGE_FORMAT_BGRX8888),
-            17 => Some(VTFImageFormat::IMAGE_FORMAT_BGR565),
-            18 => Some(VTFImageFormat::IMAGE_FORMAT_BGRX5551),
-            19 => Some(VTFImageFormat::IMAGE_FORMAT_BGRA4444),
-            20 => Some(VTFImageFormat::IMAGE_FORMAT_DXT1_ONEBITALPHA),
-            21 => Some(VTFImageFormat::IMAGE_FORMAT_BGRA5551),
-            22 => Some(VTFImageFormat::IMAGE_FORMAT_UV88),
-            23 => Some(VTFImageFormat::IMAGE_FORMAT_UVWQ8888),
-            24 => Some(VTFImageFormat::IMAGE_FORMAT_RGBA16161616F),
-            25 => Some(VTFImageFormat::IMAGE_FORMAT_RGBA16161616),
-            26 => Some(VTFImageFormat::IMAGE_FORMAT_UVLX8888),
-            27 => Some(VTFImageFormat::IMAGE_FORMAT_R32F),
-            28 => Some(VTFImageFormat::IMAGE_FORMAT_RGB323232F),
-            29 => Some(VTFImageFormat::IMAGE_FORMAT_RGBA32323232F),
-            30 => Some(VTFImageFormat::IMAGE_FORMAT_NV_DST16),
-            31 => Some(VTFImageFormat::IMAGE_FORMAT_NV_DST24),                  
-            32 => Some(VTFImageFormat::IMAGE_FORMAT_NV_INTZ),
-            33 => Some(VTFImageFormat::IMAGE_FORMAT_NV_RAWZ),
-            34 => Some(VTFImageFormat::IMAGE_FORMAT_ATI_DST16),
-            35 => Some(VTFImageFormat::IMAGE_FORMAT_ATI_DST24),
-            36 => Some(VTFImageFormat::IMAGE_FORMAT_NV_NULL),
-            37 => Some(VTFImageFormat::IMAGE_FORMAT_ATI2N),                     
-            38 => Some(VTFImageFormat::IMAGE_FORMAT_ATI1N),
-            39 => Some(VTFImageFormat::IMAGE_FORMAT_COUNT),
-            -1 => Some(VTFImageFormat::IMAGE_FORMAT_NONE),
+            0  => Some(ImageFormat::IMAGE_FORMAT_RGBA8888),
+            1  => Some(ImageFormat::IMAGE_FORMAT_ABGR8888),
+            2  => Some(ImageFormat::IMAGE_FORMAT_RGB888),
+            3  => Some(ImageFormat::IMAGE_FORMAT_BGR888),
+            4  => Some(ImageFormat::IMAGE_FORMAT_RGB565),
+            5  => Some(ImageFormat::IMAGE_FORMAT_I8),
+            6  => Some(ImageFormat::IMAGE_FORMAT_IA88),
+            7  => Some(ImageFormat::IMAGE_FORMAT_P8),
+            8  => Some(ImageFormat::IMAGE_FORMAT_A8),
+            9  => Some(ImageFormat::IMAGE_FORMAT_RGB888_BLUESCREEN),
+            10 => Some(ImageFormat::IMAGE_FORMAT_BGR888_BLUESCREEN),
+            11 => Some(ImageFormat::IMAGE_FORMAT_ARGB8888),
+            12 => Some(ImageFormat::IMAGE_FORMAT_BGRA8888),
+            13 => Some(ImageFormat::IMAGE_FORMAT_DXT1),
+            14 => Some(ImageFormat::IMAGE_FORMAT_DXT3),
+            15 => Some(ImageFormat::IMAGE_FORMAT_DXT5),
+            16 => Some(ImageFormat::IMAGE_FORMAT_BGRX8888),
+            17 => Some(ImageFormat::IMAGE_FORMAT_BGR565),
+            18 => Some(ImageFormat::IMAGE_FORMAT_BGRX5551),
+            19 => Some(ImageFormat::IMAGE_FORMAT_BGRA4444),
+            20 => Some(ImageFormat::IMAGE_FORMAT_DXT1_ONEBITALPHA),
+            21 => Some(ImageFormat::IMAGE_FORMAT_BGRA5551),
+            22 => Some(ImageFormat::IMAGE_FORMAT_UV88),
+            23 => Some(ImageFormat::IMAGE_FORMAT_UVWQ8888),
+            24 => Some(ImageFormat::IMAGE_FORMAT_RGBA16161616F),
+            25 => Some(ImageFormat::IMAGE_FORMAT_RGBA16161616),
+            26 => Some(ImageFormat::IMAGE_FORMAT_UVLX8888),
+            27 => Some(ImageFormat::IMAGE_FORMAT_R32F),
+            28 => Some(ImageFormat::IMAGE_FORMAT_RGB323232F),
+            29 => Some(ImageFormat::IMAGE_FORMAT_RGBA32323232F),
+            30 => Some(ImageFormat::IMAGE_FORMAT_NV_DST16),
+            31 => Some(ImageFormat::IMAGE_FORMAT_NV_DST24),                  
+            32 => Some(ImageFormat::IMAGE_FORMAT_NV_INTZ),
+            33 => Some(ImageFormat::IMAGE_FORMAT_NV_RAWZ),
+            34 => Some(ImageFormat::IMAGE_FORMAT_ATI_DST16),
+            35 => Some(ImageFormat::IMAGE_FORMAT_ATI_DST24),
+            36 => Some(ImageFormat::IMAGE_FORMAT_NV_NULL),
+            37 => Some(ImageFormat::IMAGE_FORMAT_ATI2N),                     
+            38 => Some(ImageFormat::IMAGE_FORMAT_ATI1N),
+            39 => Some(ImageFormat::IMAGE_FORMAT_COUNT),
+            -1 => Some(ImageFormat::IMAGE_FORMAT_NONE),
             _ => None
         }
     }
 
-    fn from_u64(n: u64) -> Option<VTFImageFormat> {
+    fn from_u64(n: u64) -> Option<ImageFormat> {
         match n {
-            0 ... 40 => VTFImageFormat::from_i64(n as i64),
+            0 ... 40 => ImageFormat::from_i64(n as i64),
             _ => None
         }
     }
