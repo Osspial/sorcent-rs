@@ -4,28 +4,13 @@ use std::mem;
 use num::FromPrimitive;
 use super::error::*;
 
+
 #[derive(Debug)]
 pub enum HeaderVersion {
     H70(HeaderRoot, Header70),
     H72(HeaderRoot, Header70, Header72),
     H73(HeaderRoot, Header70, Header72, Header73),
-    Empty
 }
-
-#[derive(Debug)]
-pub struct Resource {
-    rtype       :ResourceType,
-    flags       :u8,
-    data        :u32
-}
-
-pub trait Data 
-    where Self: Sized {
-
-    fn load<R>(source: &mut R) -> Result<Self, VTFLoadError> where R: Read;
-}
-
-
 
 #[derive(Debug)]
 pub struct HeaderRoot {
@@ -87,7 +72,7 @@ impl Header70 {
     fn verify(&self) -> Result<(), VTFError> {
         //Checks to see if width or hight is not a power of two
         if !(self.width.is_power_of_two() || self.height.is_power_of_two()) {
-            Err(VTFError::ImageSizeError)
+            Err(VTFError::ImageSize)
         } else {
             Ok(())
         }
@@ -170,6 +155,37 @@ impl Data for Header73 {
 }
 
 
+#[derive(Debug)]
+pub struct Resource {
+    id          :ResourceID,
+    data        :u32
+}
+
+impl Data for Resource {
+    fn load<R>(source: &mut R) -> Result<Self, VTFLoadError> where R: Read {
+        use std::mem::transmute;
+
+        let mut resource_buffer: [u8; 8] = [0; 8];
+        try!(source.read(&mut resource_buffer).map_err(VTFLoadError::Io));
+        let rsrc: ResourceRaw = unsafe{ transmute(resource_buffer) };
+        let resource = unsafe {
+            Resource {
+                id: try!(ResourceID::from_u32(transmute(rsrc.id))
+                        .ok_or(VTFLoadError::VTF(VTFError::ResourceID))),
+                data: transmute(rsrc.data)
+            }
+        };
+
+        Ok(resource)
+    }
+}
+
+pub trait Data 
+    where Self: Sized {
+
+    fn load<R>(source: &mut R) -> Result<Self, VTFLoadError> where R: Read;
+}
+
 
 
 ///HeaderRoot as arrays of unsigned integers to assist in loading
@@ -221,12 +237,12 @@ struct Header73Raw {
     resource_count      :[u8; 4]
 }
 
-
+///Resource as arrays of unsigned integers to assist in loading
+///Size: 8
 #[derive(Default, Debug)]
 #[repr(C)]
 struct ResourceRaw {
-    rtype               :[u8; 3],
-    flags               :u8,
+    id                  :[u8; 4],
     data                :[u8; 4]
 }
 
@@ -252,39 +268,37 @@ fn make_vtf_rsrc_idf(a: u8, b: u8, c: u8, f: u8) -> i32 {
 
 */
 
-const RSRC_NO_DATA_CHUNK: u8 = 0x02;
-
 
 #[derive(Debug)]
 #[repr(u32)]
-pub enum ResourceType {
+pub enum ResourceID {
     LegacyLowResImage       = 0x01, //make_vtf_rsrc_id(0x01, 0, 0)
     LegacyImage             = 0x30, //make_vtf_rsrc_id(0x30, 0, 0)
     Sheet                   = 0x10, //make_vtf_rsrc_id(0x10, 0, 0)
-    Crc                     = 0x435243, //make_vtf_rsrc_idf('C', 'R', 'C', RSRC_NO_DATA_CHUNK)
-    TextureLODSettings      = 0x444f4c, //make_vtf_rsrc_idf('L', 'O', 'D', RSRC_NO_DATA_CHUNK)
-    TextureSettingsEx       = 0x4f5354, //make_vtf_rsrc_idf('T', 'S', 'O', RSRC_NO_DATA_CHUNK)
+    Crc                     = 0x02435243, //make_vtf_rsrc_idf('C', 'R', 'C', RSRC_NO_DATA_CHUNK)
+    TextureLODSettings      = 0x02444f4c, //make_vtf_rsrc_idf('L', 'O', 'D', RSRC_NO_DATA_CHUNK)
+    TextureSettingsEx       = 0x024f5354, //make_vtf_rsrc_idf('T', 'S', 'O', RSRC_NO_DATA_CHUNK)
     KeyValueData            = 0x44564b, //make_vtf_rsrc_id('K', 'V', 'D')
     MaxDictionaryEntries    = 32, //32
 }
 
-impl FromPrimitive for ResourceType {
-    fn from_i64(n: i64) -> Option<ResourceType> {
-        match n {
-            0x01        => Some(ResourceType::LegacyLowResImage),
-            0x30        => Some(ResourceType::LegacyImage),
-            0x10        => Some(ResourceType::Sheet),
-            0x435243    => Some(ResourceType::Crc),
-            0x444f4c    => Some(ResourceType::TextureLODSettings),
-            0x4f5354    => Some(ResourceType::TextureSettingsEx),
-            0x44564b    => Some(ResourceType::KeyValueData),
-            32          => Some(ResourceType::MaxDictionaryEntries),
-            _           => None
-        }
+impl FromPrimitive for ResourceID {
+    fn from_i64(n: i64) -> Option<ResourceID> {
+        ResourceID::from_u64(n as u64)
     }
 
-    fn from_u64(n: u64) -> Option<ResourceType> {
-        ResourceType::from_i64(n as i64)
+    fn from_u64(n: u64) -> Option<ResourceID> {
+        match n {
+            0x01            => Some(ResourceID::LegacyLowResImage),
+            0x30            => Some(ResourceID::LegacyImage),
+            0x10            => Some(ResourceID::Sheet),
+            0x02435243      => Some(ResourceID::Crc),
+            0x02444f4c      => Some(ResourceID::TextureLODSettings),
+            0x024f5354      => Some(ResourceID::TextureSettingsEx),
+            0x44564b        => Some(ResourceID::KeyValueData),
+            32              => Some(ResourceID::MaxDictionaryEntries),
+            _               => None
+        }
     }
 }
 

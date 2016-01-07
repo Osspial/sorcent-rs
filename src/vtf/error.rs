@@ -31,8 +31,9 @@ pub enum VTFError {
     HeaderSignature,
     HeaderVersion,
     HeaderImageFormat,
-    ImageSizeError,
-    FileSizeError,
+    ImageSize,
+    FileSize,
+    ResourceID
 }
 
 impl VTFError {
@@ -41,8 +42,9 @@ impl VTFError {
             &VTFError::HeaderSignature => "Invalid Header; Signature does not match VTF",
             &VTFError::HeaderVersion => "Invalid Header; File version does not match 7.0 - 7.5",
             &VTFError::HeaderImageFormat => "Invalid Header; Invalid image format",
-            &VTFError::ImageSizeError => "Image width or height is not power of two",
-            &VTFError::FileSizeError => "File too small to contain header",
+            &VTFError::ImageSize => "Image width or height is not power of two",
+            &VTFError::FileSize => "File too small to contain header",
+            &VTFError::ResourceID => "Invalid Resource ID"
         }
     }
 }
