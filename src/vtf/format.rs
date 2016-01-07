@@ -1,32 +1,61 @@
 use libc::{c_char, c_int, c_ushort, c_uint, c_float};
-
-use std::io;
 use std::io::Read;
-
-use std::error;
-use std::fmt;
-
 use std::mem;
-
 use num::FromPrimitive;
+use super::error::*;
+
+#[derive(Debug)]
+pub enum HeaderVersion {
+    H70(HeaderRoot, Header70),
+    H72(HeaderRoot, Header70, Header72),
+    H73(HeaderRoot, Header70, Header72, Header73),
+    Empty
+}
+
+#[derive(Debug)]
+pub struct Resource {
+    rtype       :ResourceType,
+    flags       :u8,
+    data        :u32
+}
+
+pub trait Data 
+    where Self: Sized {
+
+    fn load<R>(source: &mut R) -> Result<Self, VTFLoadError> where R: Read;
+}
+
 
 
 #[derive(Debug)]
-pub struct Header70 {
-    pub root        :RootHeader,
-    pub h70         :HeaderPart70
+pub struct HeaderRoot {
+    pub type_string         :[c_char; 4],
+    pub version             :[c_int; 2],
+    pub header_size         :c_int
 }
 
-impl Header for Header70 {
-    fn load<R>(source: &mut R) -> Result<Header70, VTFLoadError> 
-      where R: Read {
+impl HeaderRoot {
+    fn verify(&self) -> Result<(), VTFError> {
+        let magic_number: [i8; 4] = unsafe{ mem::transmute(*b"VTF\0") };
+        if self.type_string != magic_number {
+            Err(VTFError::HeaderSignature)
+        } else if self.version[0] != 7 || match self.version[1] {1 ... 5 => false, _ => true} {
+            Err(VTFError::HeaderVersion)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl Data for HeaderRoot {
+    fn load<R>(source: &mut R) -> Result<HeaderRoot, VTFLoadError> where R: Read {
         use std::mem::transmute;
 
         let mut root_header_buffer: [u8; 16] = [0; 16];
         try!(source.read(&mut root_header_buffer).map_err(VTFLoadError::Io));
-        let rh: RootHeaderRaw = unsafe{ transmute(root_header_buffer) };
+        let rh: HeaderRootRaw = unsafe{ transmute(root_header_buffer) };
         let root_header = unsafe{ 
-            RootHeader {
+            HeaderRoot {
                 type_string: transmute(rh.type_string),
                 version: transmute(rh.version),
                 header_size: transmute(rh.header_size)
@@ -34,12 +63,46 @@ impl Header for Header70 {
         };
         try!(root_header.verify().map_err(VTFLoadError::VTF));
 
+        Ok(root_header)
+    }
+}
+
+#[derive(Debug)]
+pub struct Header70 {
+    pub width               :c_ushort,
+    pub height              :c_ushort,
+    pub flags               :c_uint,
+    pub frames              :c_ushort,
+    pub start_frame         :c_ushort, 
+    pub reflectivity        :[c_float; 3],
+    pub bump_scale          :c_float,
+    pub image_format        :ImageFormat,
+    pub mip_count           :u8,
+    pub thumbnail_format    :ImageFormat,
+    pub thumbnail_width     :u8,
+    pub thumbnail_height    :u8
+}
+
+impl Header70 {
+    fn verify(&self) -> Result<(), VTFError> {
+        //Checks to see if width or hight is not a power of two
+        if !(self.width.is_power_of_two() || self.height.is_power_of_two()) {
+            Err(VTFError::ImageSizeError)
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl Data for Header70 {
+    fn load<R>(source: &mut R) -> Result<Header70, VTFLoadError> where R: Read {
+        use std::mem::transmute;
 
         let mut header70_buffer: [u8; 47] = [0; 47];
         try!(source.read(&mut header70_buffer).map_err(VTFLoadError::Io));
-        let h70: HeaderPart70Raw = unsafe{ transmute(header70_buffer) };
+        let h70: Header70Raw = unsafe{ transmute(header70_buffer) };
         let header70 = unsafe{ 
-            HeaderPart70 {
+            Header70 {
                 width: transmute(h70.width),
                 height: transmute(h70.height),
                 flags: transmute(h70.flags),
@@ -58,224 +121,62 @@ impl Header for Header70 {
         };
         try!(header70.verify().map_err(VTFLoadError::VTF));
 
-        Ok(Header70{ root: root_header, h70: header70 })
+        Ok(header70)
     }
 }
 
-pub type Header71 = Header70;
-
-
 #[derive(Debug)]
 pub struct Header72 {
-    pub root        :RootHeader,
-    pub h70         :HeaderPart70,
-    pub h72         :HeaderPart72
+    pub depth           :c_ushort
 }
 
-
-impl Header for Header72 {
-    fn load<R>(source: &mut R) -> Result<Header72, VTFLoadError> 
-      where R: Read {
+impl Data for Header72 {
+    fn load<R>(source: &mut R) -> Result<Header72, VTFLoadError> where R: Read {
         use std::mem::transmute;
-
-        let header70 = try!(Header70::load(source));
-
 
         let mut header72_buffer: [u8; 2] = [0; 2];
         try!(source.read(&mut header72_buffer).map_err(VTFLoadError::Io));
-        let h72: HeaderPart72Raw = unsafe{ transmute(header72_buffer) };
+        let h72: Header72Raw = unsafe{ transmute(header72_buffer) };
         let header72 = unsafe {
-            HeaderPart72 {
+            Header72 {
                 depth: transmute(h72.depth)
             }
         };
 
-
-        Ok(Header72{ root: header70.root, h70: header70.h70, h72: header72 })
+        Ok(header72)
     }
 }
 
-
-
 #[derive(Debug)]
 pub struct Header73 {
-    pub root        :RootHeader,
-    pub h70         :HeaderPart70,
-    pub h72         :HeaderPart72,
-    pub h73         :HeaderPart73
+    pub resource_count  :c_uint
 }
 
-impl Header for Header73 {
-    fn load<R>(source: &mut R) -> Result<Header73, VTFLoadError> 
-      where R: Read {
+impl Data for Header73 {
+    fn load<R>(source: &mut R) -> Result<Header73, VTFLoadError> where R: Read {
         use std::mem::transmute;
-
-        let header72 = try!(Header72::load(source));
-
 
         let mut header73_buffer: [u8; 7] = [0; 7];
         try!(source.read(&mut header73_buffer).map_err(VTFLoadError::Io));
-        let h73: HeaderPart73Raw = unsafe{ transmute(header73_buffer) };
+        let h73: Header73Raw = unsafe{ transmute(header73_buffer) };
         let header73 = unsafe {
-            HeaderPart73 {
+            Header73 {
                 resource_count: transmute(h73.resource_count)
             }
         };
 
-        Ok(Header73{ root: header72.root, h70: header72.h70, h72: header72.h72, h73: header73 })
-    }
-}
-
-pub type Header74 = Header73;
-pub type Header75 = Header74;
-
-pub trait Header 
-    where Self: Sized {
-
-    fn load<R>(source: &mut R) -> Result<Self, VTFLoadError> where R: Read;
-}
-
-
-
-#[derive(Debug)]
-pub struct RootHeader {
-    pub type_string         :[c_char; 4],
-    pub version             :[c_int; 2],
-    pub header_size         :c_int
-}
-
-impl RootHeader {
-    fn verify(&self) -> Result<(), VTFError> {
-        let magic_number: [i8; 4] = unsafe{ mem::transmute(*b"VTF\0") };
-        if self.type_string != magic_number {
-            Err(VTFError::HeaderSignature)
-        }
-        else if self.version[0] != 7 || match self.version[1] {1 ... 5 => false, _ => true} {
-            Err(VTFError::HeaderVersion)
-        } else {
-            Ok(())
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct HeaderPart70 {
-    pub width               :c_ushort,
-    pub height              :c_ushort,
-    pub flags               :c_uint,
-    pub frames              :c_ushort,
-    pub start_frame         :c_ushort, 
-    pub reflectivity        :[c_float; 3],
-    pub bump_scale          :c_float,
-    pub image_format        :ImageFormat,
-    pub mip_count           :u8,
-    pub thumbnail_format    :ImageFormat,
-    pub thumbnail_width     :u8,
-    pub thumbnail_height    :u8
-}
-
-impl HeaderPart70 {
-    fn verify(&self) -> Result<(), VTFError> {
-        //Checks to see if width or hight is not a power of two
-        if !(self.width.is_power_of_two() || self.height.is_power_of_two()) {
-            Err(VTFError::ImageSizeError)
-        } else {
-            Ok(())
-        }
-    }
-}
-
-#[derive(Debug)]
-pub struct HeaderPart72 {
-    pub depth           :c_ushort
-}
-
-#[derive(Debug)]
-pub struct HeaderPart73 {
-    pub resource_count  :c_uint
-}
-
-
-#[derive(Debug)]
-pub enum VTFLoadError {
-    Io(io::Error),
-    VTF(VTFError)
-}
-
-impl fmt::Display for VTFLoadError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            VTFLoadError::Io(ref err) => write!(f, "IO Error: {}", err),
-            VTFLoadError::VTF(ref err) => write!(f, "VTF Error: {}", err)
-        }
-    }
-}
-
-impl error::Error for VTFLoadError {
-    fn description(&self) -> &str {
-        match *self {
-            VTFLoadError::Io(ref err) => err.description(),
-            VTFLoadError::VTF(ref err) => err.description()
-        }
-    }
-}
-
-struct Resource {
-    rtype       :ResourceType,
-    flags       :u8,
-    data        :u32
-}
-
-impl Resource {
-    fn load<R>(/*source: &mut R*/) /*-> Result<Resource, VTFLoadError>*/ {
-
-    }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq, Copy)]
-pub enum VTFError {
-    HeaderSignature,
-    HeaderVersion,
-    HeaderImageFormat,
-    ImageSizeError,
-    FileSizeError,
-}
-
-impl VTFError {
-    fn __description(&self) -> &str {
-        match self {
-            &VTFError::HeaderSignature => "Invalid Header; Signature does not match VTF",
-            &VTFError::HeaderVersion => "Invalid Header; File version does not match 7.0 - 7.5",
-            &VTFError::HeaderImageFormat => "Invalid Header; Invalid image format",
-            &VTFError::ImageSizeError => "Image width or height is not power of two",
-            &VTFError::FileSizeError => "File too small to contain header",
-        }
-    }
-}
-
-impl fmt::Display for VTFError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.__description().fmt(f)
-    }
-}
-
-impl error::Error for VTFError {
-    fn description(&self) -> &str {
-        self.__description()
+        Ok(header73)
     }
 }
 
 
 
 
-
-
-
-///RootHeader as arrays of unsigned integers to assist in loading
+///HeaderRoot as arrays of unsigned integers to assist in loading
 ///Size: 16
 #[derive(Default, Debug)]
 #[repr(C)]
-struct RootHeaderRaw {
+struct HeaderRootRaw {
     type_string         :[u8; 4],
     version             :[u8; 8],
     header_size         :[u8; 4]
@@ -286,7 +187,7 @@ struct RootHeaderRaw {
 ///Size: 47
 #[derive(Default, Debug)]
 #[repr(C)]
-struct HeaderPart70Raw {
+struct Header70Raw {
     width               :[u8; 2],
     height              :[u8; 2],
     flags               :[u8; 4],
@@ -307,7 +208,7 @@ struct HeaderPart70Raw {
 ///Size: 2
 #[derive(Default, Debug)]
 #[repr(C)]
-struct HeaderPart72Raw {
+struct Header72Raw {
     depth               :[u8; 2]
 }
 
@@ -315,7 +216,7 @@ struct HeaderPart72Raw {
 ///Size: 7
 #[derive(Default, Debug)]
 #[repr(C)]
-struct HeaderPart73Raw {
+struct Header73Raw {
     padding             :[u8; 3],
     resource_count      :[u8; 4]
 }
