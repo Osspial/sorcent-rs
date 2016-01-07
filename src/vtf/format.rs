@@ -13,17 +13,17 @@ use num::FromPrimitive;
 
 #[derive(Debug)]
 pub struct Header70 {
-    pub root: RootHeader,
-    pub h70: HeaderPart70
+    pub root        :RootHeader,
+    pub h70         :HeaderPart70
 }
 
 impl Header for Header70 {
-    fn load<R>(source: &mut R) -> Result<Header70, HeaderLoadError> 
+    fn load<R>(source: &mut R) -> Result<Header70, VTFLoadError> 
       where R: Read {
         use std::mem::transmute;
 
         let mut root_header_buffer: [u8; 16] = [0; 16];
-        try!(source.read(&mut root_header_buffer).map_err(HeaderLoadError::Io));
+        try!(source.read(&mut root_header_buffer).map_err(VTFLoadError::Io));
         let rh: RootHeaderRaw = unsafe{ transmute(root_header_buffer) };
         let root_header = unsafe{ 
             RootHeader {
@@ -32,11 +32,11 @@ impl Header for Header70 {
                 header_size: transmute(rh.header_size)
             } 
         };
-        try!(root_header.verify().map_err(HeaderLoadError::Vtf));
+        try!(root_header.verify().map_err(VTFLoadError::VTF));
 
 
         let mut header70_buffer: [u8; 47] = [0; 47];
-        try!(source.read(&mut header70_buffer).map_err(HeaderLoadError::Io));
+        try!(source.read(&mut header70_buffer).map_err(VTFLoadError::Io));
         let h70: HeaderPart70Raw = unsafe{ transmute(header70_buffer) };
         let header70 = unsafe{ 
             HeaderPart70 {
@@ -48,15 +48,15 @@ impl Header for Header70 {
                 reflectivity: transmute(h70.reflectivity),
                 bump_scale: transmute(h70.bump_scale),
                 image_format: try!(VTFImageFormat::from_i32(transmute(h70.image_format))
-                                .ok_or(HeaderLoadError::Vtf(VTFError::HeaderImageFormat))),
+                                .ok_or(VTFLoadError::VTF(VTFError::HeaderImageFormat))),
                 mip_count: h70.mip_count,
                 thumbnail_format: try!(VTFImageFormat::from_i32(transmute(h70.thumbnail_format))
-                                .ok_or(HeaderLoadError::Vtf(VTFError::HeaderImageFormat))),
+                                .ok_or(VTFLoadError::VTF(VTFError::HeaderImageFormat))),
                 thumbnail_width: h70.thumbnail_width,
                 thumbnail_height: h70.thumbnail_height
             } 
         };
-        try!(header70.verify().map_err(HeaderLoadError::Vtf));
+        try!(header70.verify().map_err(VTFLoadError::VTF));
 
         Ok(Header70{ root: root_header, h70: header70 })
     }
@@ -67,21 +67,22 @@ pub type Header71 = Header70;
 
 #[derive(Debug)]
 pub struct Header72 {
-    pub root: RootHeader,
-    pub h70: HeaderPart70,
-    pub h72: HeaderPart72
+    pub root        :RootHeader,
+    pub h70         :HeaderPart70,
+    pub h72         :HeaderPart72
 }
 
 
 impl Header for Header72 {
-    fn load<R>(source: &mut R) -> Result<Header72, HeaderLoadError> where R: Read {
+    fn load<R>(source: &mut R) -> Result<Header72, VTFLoadError> 
+      where R: Read {
         use std::mem::transmute;
 
         let header70 = try!(Header70::load(source));
 
 
         let mut header72_buffer: [u8; 2] = [0; 2];
-        try!(source.read(&mut header72_buffer).map_err(HeaderLoadError::Io));
+        try!(source.read(&mut header72_buffer).map_err(VTFLoadError::Io));
         let h72: HeaderPart72Raw = unsafe{ transmute(header72_buffer) };
         let header72 = unsafe {
             HeaderPart72 {
@@ -98,21 +99,22 @@ impl Header for Header72 {
 
 #[derive(Debug)]
 pub struct Header73 {
-    pub root: RootHeader,
-    pub h70: HeaderPart70,
-    pub h72: HeaderPart72,
-    pub h73: HeaderPart73
+    pub root        :RootHeader,
+    pub h70         :HeaderPart70,
+    pub h72         :HeaderPart72,
+    pub h73         :HeaderPart73
 }
 
 impl Header for Header73 {
-    fn load<R>(source: &mut R) -> Result<Header73, HeaderLoadError> where R: Read {
+    fn load<R>(source: &mut R) -> Result<Header73, VTFLoadError> 
+      where R: Read {
         use std::mem::transmute;
 
         let header72 = try!(Header72::load(source));
 
 
         let mut header73_buffer: [u8; 7] = [0; 7];
-        try!(source.read(&mut header73_buffer).map_err(HeaderLoadError::Io));
+        try!(source.read(&mut header73_buffer).map_err(VTFLoadError::Io));
         let h73: HeaderPart73Raw = unsafe{ transmute(header73_buffer) };
         let header73 = unsafe {
             HeaderPart73 {
@@ -130,16 +132,16 @@ pub type Header75 = Header74;
 pub trait Header 
     where Self: Sized {
 
-    fn load<R>(source: &mut R) -> Result<Self, HeaderLoadError> where R: Read;
+    fn load<R>(source: &mut R) -> Result<Self, VTFLoadError> where R: Read;
 }
 
 
 
 #[derive(Debug)]
 pub struct RootHeader {
-    pub type_string: [c_char; 4],
-    pub version: [c_int; 2],
-    pub header_size: c_int
+    pub type_string         :[c_char; 4],
+    pub version             :[c_int; 2],
+    pub header_size         :c_int
 }
 
 impl RootHeader {
@@ -158,18 +160,18 @@ impl RootHeader {
 
 #[derive(Debug)]
 pub struct HeaderPart70 {
-    pub width: c_ushort,
-    pub height: c_ushort,
-    pub flags: c_uint,
-    pub frames: c_ushort,
-    pub start_frame: c_ushort, 
-    pub reflectivity: [c_float; 3],
-    pub bump_scale: c_float,
-    pub image_format: VTFImageFormat,
-    pub mip_count: u8,
-    pub thumbnail_format: VTFImageFormat,
-    pub thumbnail_width: u8,
-    pub thumbnail_height: u8
+    pub width               :c_ushort,
+    pub height              :c_ushort,
+    pub flags               :c_uint,
+    pub frames              :c_ushort,
+    pub start_frame         :c_ushort, 
+    pub reflectivity        :[c_float; 3],
+    pub bump_scale          :c_float,
+    pub image_format        :VTFImageFormat,
+    pub mip_count           :u8,
+    pub thumbnail_format    :VTFImageFormat,
+    pub thumbnail_width     :u8,
+    pub thumbnail_height    :u8
 }
 
 impl HeaderPart70 {
@@ -185,36 +187,48 @@ impl HeaderPart70 {
 
 #[derive(Debug)]
 pub struct HeaderPart72 {
-    pub depth: c_ushort
+    pub depth           :c_ushort
 }
 
 #[derive(Debug)]
 pub struct HeaderPart73 {
-    pub resource_count: c_uint
+    pub resource_count  :c_uint
 }
 
 
 #[derive(Debug)]
-pub enum HeaderLoadError {
+pub enum VTFLoadError {
     Io(io::Error),
-    Vtf(VTFError)
+    VTF(VTFError)
 }
 
-impl fmt::Display for HeaderLoadError {
+impl fmt::Display for VTFLoadError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            HeaderLoadError::Io(ref err) => write!(f, "IO Error: {}", err),
-            HeaderLoadError::Vtf(ref err) => write!(f, "VTF Error: {}", err)
+            VTFLoadError::Io(ref err) => write!(f, "IO Error: {}", err),
+            VTFLoadError::VTF(ref err) => write!(f, "VTF Error: {}", err)
         }
     }
 }
 
-impl error::Error for HeaderLoadError {
+impl error::Error for VTFLoadError {
     fn description(&self) -> &str {
         match *self {
-            HeaderLoadError::Io(ref err) => err.description(),
-            HeaderLoadError::Vtf(ref err) => err.description()
+            VTFLoadError::Io(ref err) => err.description(),
+            VTFLoadError::VTF(ref err) => err.description()
         }
+    }
+}
+
+struct Resource {
+    rtype       :VTFResourceType,
+    flags       :u8,
+    data        :u32
+}
+
+impl Resource {
+    fn load<R>(/*source: &mut R*/) /*-> Result<Resource, VTFLoadError>*/ {
+
     }
 }
 
@@ -262,9 +276,9 @@ impl error::Error for VTFError {
 #[derive(Default, Debug)]
 #[repr(C)]
 struct RootHeaderRaw {
-    type_string: [u8; 4],
-    version: [u8; 8],
-    header_size: [u8; 4]
+    type_string         :[u8; 4],
+    version             :[u8; 8],
+    header_size         :[u8; 4]
 }
 
 
@@ -273,20 +287,20 @@ struct RootHeaderRaw {
 #[derive(Default, Debug)]
 #[repr(C)]
 struct HeaderPart70Raw {
-    width: [u8; 2],
-    height: [u8; 2],
-    flags: [u8; 4],
-    frames: [u8; 2],
-    start_frame: [u8; 2],
-    padding_0: [u8; 4],
-    reflectivity: [u8; 12],
-    padding_1: [u8; 4],
-    bump_scale: [u8; 4],
-    image_format: [u8; 4],
-    mip_count: u8,
-    thumbnail_format: [u8; 4],
-    thumbnail_width: u8,
-    thumbnail_height: u8
+    width               :[u8; 2],
+    height              :[u8; 2],
+    flags               :[u8; 4],
+    frames              :[u8; 2],
+    start_frame         :[u8; 2],
+    padding_0           :[u8; 4],
+    reflectivity        :[u8; 12],
+    padding_1           :[u8; 4],
+    bump_scale          :[u8; 4],
+    image_format        :[u8; 4],
+    mip_count           :u8,
+    thumbnail_format    :[u8; 4],
+    thumbnail_width     :u8,
+    thumbnail_height    :u8
 }
 
 ///Header72 as arrays of unsigned integers to assist in loading
@@ -294,7 +308,7 @@ struct HeaderPart70Raw {
 #[derive(Default, Debug)]
 #[repr(C)]
 struct HeaderPart72Raw {
-    depth: [u8; 2]
+    depth               :[u8; 2]
 }
 
 ///Header73 as arrays of unsigned integers to assist in loading
@@ -302,9 +316,21 @@ struct HeaderPart72Raw {
 #[derive(Default, Debug)]
 #[repr(C)]
 struct HeaderPart73Raw {
-    padding: [u8; 3],
-    resource_count: [u8; 4]
+    padding             :[u8; 3],
+    resource_count      :[u8; 4]
 }
+
+
+#[derive(Default, Debug)]
+#[repr(C)]
+struct ResourceRaw {
+    rtype               :[u8; 3],
+    flags               :u8,
+    data                :[u8; 4]
+}
+
+
+
 
 /*
 //Functions used to compute the resource IDs.
@@ -322,27 +348,42 @@ fn make_vtf_rsrc_idf(a: u8, b: u8, c: u8, f: u8) -> i32 {
 
     (a | b << 8 | c << 16 | f << 24) as i32
 }
+
 */
 
 const RSRC_NO_DATA_CHUNK: u8 = 0x02;
 
+
 #[derive(Debug)]
 #[repr(u32)]
-enum VTFResourceType {
+pub enum VTFResourceType {
     LegacyLowResImage       = 0x01, //make_vtf_rsrc_id(0x01, 0, 0)
     LegacyImage             = 0x30, //make_vtf_rsrc_id(0x30, 0, 0)
     Sheet                   = 0x10, //make_vtf_rsrc_id(0x10, 0, 0)
-    Crc                     = 0x02435243, //make_vtf_rsrc_idf('C', 'R', 'C', RSRC_NO_DATA_CHUNK)
-    TextureLODSettings      = 0x02444f4c, //make_vtf_rsrc_idf('L', 'O', 'D', RSRC_NO_DATA_CHUNK)
-    TextureSettingsEx       = 0x024f5354, //make_vtf_rsrc_idf('T', 'S', 'O', RSRC_NO_DATA_CHUNK)
-    KeyValueData            = 0x0044564b, //make_vtf_rsrc_id('K', 'V', 'D')
+    Crc                     = 0x435243, //make_vtf_rsrc_idf('C', 'R', 'C', RSRC_NO_DATA_CHUNK)
+    TextureLODSettings      = 0x444f4c, //make_vtf_rsrc_idf('L', 'O', 'D', RSRC_NO_DATA_CHUNK)
+    TextureSettingsEx       = 0x4f5354, //make_vtf_rsrc_idf('T', 'S', 'O', RSRC_NO_DATA_CHUNK)
+    KeyValueData            = 0x44564b, //make_vtf_rsrc_id('K', 'V', 'D')
     MaxDictionaryEntries    = 32, //32
-    Default //Used to specify a default value
 }
 
-impl Default for VTFResourceType {
-    fn default() -> Self {
-        VTFResourceType::Default
+impl FromPrimitive for VTFResourceType {
+    fn from_i64(n: i64) -> Option<VTFResourceType> {
+        match n {
+            0x01        => Some(VTFResourceType::LegacyLowResImage),
+            0x30        => Some(VTFResourceType::LegacyImage),
+            0x10        => Some(VTFResourceType::Sheet),
+            0x435243    => Some(VTFResourceType::Crc),
+            0x444f4c    => Some(VTFResourceType::TextureLODSettings),
+            0x4f5354    => Some(VTFResourceType::TextureSettingsEx),
+            0x44564b    => Some(VTFResourceType::KeyValueData),
+            32          => Some(VTFResourceType::MaxDictionaryEntries),
+            _           => None
+        }
+    }
+
+    fn from_u64(n: u64) -> Option<VTFResourceType> {
+        VTFResourceType::from_i64(n as i64)
     }
 }
 
@@ -392,12 +433,6 @@ pub enum VTFImageFormat {
     IMAGE_FORMAT_ATI1N,
     IMAGE_FORMAT_COUNT,
     IMAGE_FORMAT_NONE = -1
-}
-
-impl Default for VTFImageFormat {
-    fn default() -> Self {
-        VTFImageFormat::IMAGE_FORMAT_NONE
-    }
 }
 
 impl FromPrimitive for VTFImageFormat {
