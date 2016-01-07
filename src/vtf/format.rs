@@ -188,8 +188,8 @@ pub trait Data
 
 
 
-///HeaderRoot as arrays of unsigned integers to assist in loading
-///Size: 16
+/// HeaderRoot as arrays of unsigned integers to assist in loading
+/// Size: 16
 #[derive(Default, Debug)]
 #[repr(C)]
 struct HeaderRootRaw {
@@ -199,8 +199,8 @@ struct HeaderRootRaw {
 }
 
 
-///Header70 as arrays of unsigned integers to assist in loading
-///Size: 47
+/// Header70 as arrays of unsigned integers to assist in loading
+/// Size: 47
 #[derive(Default, Debug)]
 #[repr(C)]
 struct Header70Raw {
@@ -220,16 +220,16 @@ struct Header70Raw {
     thumbnail_height    :u8
 }
 
-///Header72 as arrays of unsigned integers to assist in loading
-///Size: 2
+/// Header72 as arrays of unsigned integers to assist in loading
+/// Size: 2
 #[derive(Default, Debug)]
 #[repr(C)]
 struct Header72Raw {
     depth               :[u8; 2]
 }
 
-///Header73 as arrays of unsigned integers to assist in loading
-///Size: 7
+/// Header73 as arrays of unsigned integers to assist in loading
+/// Size: 7
 #[derive(Default, Debug)]
 #[repr(C)]
 struct Header73Raw {
@@ -237,8 +237,8 @@ struct Header73Raw {
     resource_count      :[u8; 4]
 }
 
-///Resource as arrays of unsigned integers to assist in loading
-///Size: 8
+/// Resource as arrays of unsigned integers to assist in loading
+/// Size: 8
 #[derive(Default, Debug)]
 #[repr(C)]
 struct ResourceRaw {
@@ -303,97 +303,129 @@ impl FromPrimitive for ResourceID {
 }
 
 
+/// An enum with possible image formats. Documentation taken from
+/// VTFFormat.h in VTFLib by Neil Jedrzejewski & Ryan Gregg
 #[allow(non_camel_case_types)]
 #[derive(Debug)]
 #[repr(i32)]
 pub enum ImageFormat {
-    IMAGE_FORMAT_RGBA8888 = 0,
-    IMAGE_FORMAT_ABGR8888,
-    IMAGE_FORMAT_RGB888,
-    IMAGE_FORMAT_BGR888,
-    IMAGE_FORMAT_RGB565,
-    IMAGE_FORMAT_I8,
-    IMAGE_FORMAT_IA88,
-    IMAGE_FORMAT_P8,
-    IMAGE_FORMAT_A8,
-    IMAGE_FORMAT_RGB888_BLUESCREEN,
-    IMAGE_FORMAT_BGR888_BLUESCREEN,
-    IMAGE_FORMAT_ARGB8888,
-    IMAGE_FORMAT_BGRA8888,
-    IMAGE_FORMAT_DXT1,
-    IMAGE_FORMAT_DXT3,
-    IMAGE_FORMAT_DXT5,
-    IMAGE_FORMAT_BGRX8888,
-    IMAGE_FORMAT_BGR565,
-    IMAGE_FORMAT_BGRX5551,
-    IMAGE_FORMAT_BGRA4444,
-    IMAGE_FORMAT_DXT1_ONEBITALPHA,
-    IMAGE_FORMAT_BGRA5551,
-    IMAGE_FORMAT_UV88,
-    IMAGE_FORMAT_UVWQ8888,
-    IMAGE_FORMAT_RGBA16161616F,
-    IMAGE_FORMAT_RGBA16161616,
-    IMAGE_FORMAT_UVLX8888,
-    IMAGE_FORMAT_R32F,
-    IMAGE_FORMAT_RGB323232F,
-    IMAGE_FORMAT_RGBA32323232F,
-    IMAGE_FORMAT_NV_DST16,
-    IMAGE_FORMAT_NV_DST24,                  
-    IMAGE_FORMAT_NV_INTZ,
-    IMAGE_FORMAT_NV_RAWZ,
-    IMAGE_FORMAT_ATI_DST16,
-    IMAGE_FORMAT_ATI_DST24,
-    IMAGE_FORMAT_NV_NULL,
-    IMAGE_FORMAT_ATI2N,                     
-    IMAGE_FORMAT_ATI1N,
-    IMAGE_FORMAT_COUNT,
-    IMAGE_FORMAT_NONE = -1
+    /// Red, Green, Blue, Alpha - 32 bpp
+    RGBA8888 = 0,
+    /// Alpha, Blue, Green, Red - 32 bpp
+    ABGR8888,
+    /// Red, Green, Blue - 24 bpp
+    RGB888,
+    /// Blue, Green, Red - 24 bpp
+    BGR888,
+    /// Red, Green, Blue - 16 bpp
+    RGB565,
+    /// Luminance - 8 bpp
+    I8,
+    /// Luminance, Alpha - 16 bpp
+    IA88,
+    /// Paletted - 8 bpp
+    P8,
+    /// Alpha- 8 bpp
+    A8,
+    /// Red, Green, Blue, "BlueScreen" Alpha - 24 bpp
+    RGB888_BLUESCREEN,
+    /// Blue, Green, Red, "BlueScreen" Alpha - 24 bpp
+    BGR888_BLUESCREEN,
+    /// Alpha, Red, Green, Blue - 32 bpp
+    ARGB8888,
+    /// Blue, Green, Red, Alpha - 32 bpp
+    BGRA8888,
+    /// DXT1 compressed format - 4 bpp
+    DXT1,
+    /// DXT3 compressed format - 8 bpp
+    DXT3,
+    /// DXT5 compressed format - 8 bpp
+    DXT5,
+    /// Blue, Green, Red, Unused - 32 bpp
+    BGRX8888,
+    /// Blue, Green, Red - 16 bpp
+    BGR565,
+    /// Blue, Green, Red, Unused - 16 bpp
+    BGRX5551,
+    /// //!<  = Red, Green, Blue, Alpha - 16 bpp
+    BGRA4444,
+    /// DXT1 compressed format with 1-bit alpha - 4 bpp
+    DXT1_ONEBITALPHA,
+    /// Blue, Green, Red, Alpha - 16 bpp
+    BGRA5551,
+    /// 2 channel format for DuDv/Normal maps - 16 bpp
+    UV88,
+    /// 4 channel format for DuDv/Normal maps - 32 bpp
+    UVWQ8888,
+    /// Red, Green, Blue, Alpha - 64 bpp
+    RGBA16161616F,
+    /// Red, Green, Blue, Alpha signed with mantissa - 64 bpp
+    RGBA16161616,
+    /// 4 channel format for DuDv/Normal maps - 32 bpp
+    UVLX8888,
+    /// Luminance - 32 bpp
+    R32F,
+    /// Red, Green, Blue - 96 bpp
+    RGB323232F,
+    /// Red, Green, Blue, Alpha - 128 bpp
+    RGBA32323232F,
+    NV_DST16,
+    NV_DST24,                  
+    NV_INTZ,
+    NV_RAWZ,
+    ATI_DST16,
+    ATI_DST24,
+    NV_NULL,
+    ATI2N,                     
+    ATI1N,
+    COUNT,
+    NONE = -1
 }
 
 impl FromPrimitive for ImageFormat {
     fn from_i64(n: i64) -> Option<ImageFormat> {
         match n {
-            0  => Some(ImageFormat::IMAGE_FORMAT_RGBA8888),
-            1  => Some(ImageFormat::IMAGE_FORMAT_ABGR8888),
-            2  => Some(ImageFormat::IMAGE_FORMAT_RGB888),
-            3  => Some(ImageFormat::IMAGE_FORMAT_BGR888),
-            4  => Some(ImageFormat::IMAGE_FORMAT_RGB565),
-            5  => Some(ImageFormat::IMAGE_FORMAT_I8),
-            6  => Some(ImageFormat::IMAGE_FORMAT_IA88),
-            7  => Some(ImageFormat::IMAGE_FORMAT_P8),
-            8  => Some(ImageFormat::IMAGE_FORMAT_A8),
-            9  => Some(ImageFormat::IMAGE_FORMAT_RGB888_BLUESCREEN),
-            10 => Some(ImageFormat::IMAGE_FORMAT_BGR888_BLUESCREEN),
-            11 => Some(ImageFormat::IMAGE_FORMAT_ARGB8888),
-            12 => Some(ImageFormat::IMAGE_FORMAT_BGRA8888),
-            13 => Some(ImageFormat::IMAGE_FORMAT_DXT1),
-            14 => Some(ImageFormat::IMAGE_FORMAT_DXT3),
-            15 => Some(ImageFormat::IMAGE_FORMAT_DXT5),
-            16 => Some(ImageFormat::IMAGE_FORMAT_BGRX8888),
-            17 => Some(ImageFormat::IMAGE_FORMAT_BGR565),
-            18 => Some(ImageFormat::IMAGE_FORMAT_BGRX5551),
-            19 => Some(ImageFormat::IMAGE_FORMAT_BGRA4444),
-            20 => Some(ImageFormat::IMAGE_FORMAT_DXT1_ONEBITALPHA),
-            21 => Some(ImageFormat::IMAGE_FORMAT_BGRA5551),
-            22 => Some(ImageFormat::IMAGE_FORMAT_UV88),
-            23 => Some(ImageFormat::IMAGE_FORMAT_UVWQ8888),
-            24 => Some(ImageFormat::IMAGE_FORMAT_RGBA16161616F),
-            25 => Some(ImageFormat::IMAGE_FORMAT_RGBA16161616),
-            26 => Some(ImageFormat::IMAGE_FORMAT_UVLX8888),
-            27 => Some(ImageFormat::IMAGE_FORMAT_R32F),
-            28 => Some(ImageFormat::IMAGE_FORMAT_RGB323232F),
-            29 => Some(ImageFormat::IMAGE_FORMAT_RGBA32323232F),
-            30 => Some(ImageFormat::IMAGE_FORMAT_NV_DST16),
-            31 => Some(ImageFormat::IMAGE_FORMAT_NV_DST24),                  
-            32 => Some(ImageFormat::IMAGE_FORMAT_NV_INTZ),
-            33 => Some(ImageFormat::IMAGE_FORMAT_NV_RAWZ),
-            34 => Some(ImageFormat::IMAGE_FORMAT_ATI_DST16),
-            35 => Some(ImageFormat::IMAGE_FORMAT_ATI_DST24),
-            36 => Some(ImageFormat::IMAGE_FORMAT_NV_NULL),
-            37 => Some(ImageFormat::IMAGE_FORMAT_ATI2N),                     
-            38 => Some(ImageFormat::IMAGE_FORMAT_ATI1N),
-            39 => Some(ImageFormat::IMAGE_FORMAT_COUNT),
-            -1 => Some(ImageFormat::IMAGE_FORMAT_NONE),
+            0  => Some(ImageFormat::RGBA8888),
+            1  => Some(ImageFormat::ABGR8888),
+            2  => Some(ImageFormat::RGB888),
+            3  => Some(ImageFormat::BGR888),
+            4  => Some(ImageFormat::RGB565),
+            5  => Some(ImageFormat::I8),
+            6  => Some(ImageFormat::IA88),
+            7  => Some(ImageFormat::P8),
+            8  => Some(ImageFormat::A8),
+            9  => Some(ImageFormat::RGB888_BLUESCREEN),
+            10 => Some(ImageFormat::BGR888_BLUESCREEN),
+            11 => Some(ImageFormat::ARGB8888),
+            12 => Some(ImageFormat::BGRA8888),
+            13 => Some(ImageFormat::DXT1),
+            14 => Some(ImageFormat::DXT3),
+            15 => Some(ImageFormat::DXT5),
+            16 => Some(ImageFormat::BGRX8888),
+            17 => Some(ImageFormat::BGR565),
+            18 => Some(ImageFormat::BGRX5551),
+            19 => Some(ImageFormat::BGRA4444),
+            20 => Some(ImageFormat::DXT1_ONEBITALPHA),
+            21 => Some(ImageFormat::BGRA5551),
+            22 => Some(ImageFormat::UV88),
+            23 => Some(ImageFormat::UVWQ8888),
+            24 => Some(ImageFormat::RGBA16161616F),
+            25 => Some(ImageFormat::RGBA16161616),
+            26 => Some(ImageFormat::UVLX8888),
+            27 => Some(ImageFormat::R32F),
+            28 => Some(ImageFormat::RGB323232F),
+            29 => Some(ImageFormat::RGBA32323232F),
+            30 => Some(ImageFormat::NV_DST16),
+            31 => Some(ImageFormat::NV_DST24),                  
+            32 => Some(ImageFormat::NV_INTZ),
+            33 => Some(ImageFormat::NV_RAWZ),
+            34 => Some(ImageFormat::ATI_DST16),
+            35 => Some(ImageFormat::ATI_DST24),
+            36 => Some(ImageFormat::NV_NULL),
+            37 => Some(ImageFormat::ATI2N),                     
+            38 => Some(ImageFormat::ATI1N),
+            39 => Some(ImageFormat::COUNT),
+            -1 => Some(ImageFormat::NONE),
             _ => None
         }
     }
