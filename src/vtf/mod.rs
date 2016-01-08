@@ -1,6 +1,8 @@
 #[allow(dead_code)]
 mod format;
 mod error;
+#[allow(dead_code)]
+pub mod dxt;
 
 use std::fs::File;
 use std::io::Read;
@@ -8,11 +10,13 @@ use std::mem;
 
 use self::format::{Data, HeaderRoot, Header70, Header72, Header73, Resource, HeaderVersion};
 use self::error::{VTFLoadError, VTFError};
+use self::dxt::Dxt1Raw;
 
 #[derive(Debug)]
 pub struct VTFFile {
     header: HeaderVersion,
-    resources: Option<Box<[Resource]>>
+    resources: Option<Box<[Resource]>>,
+    image: Option<Dxt1Raw>
 }
 
 impl VTFFile {
@@ -55,20 +59,22 @@ impl VTFFile {
                 ri += 1;
             }
 
-            Ok(VTFFile {header: header, resources: Some(resources.into_boxed_slice())})
+            let image = Dxt1Raw::load(&mut *file, 16*16).unwrap();
+
+            Ok(VTFFile {header: header, resources: Some(resources.into_boxed_slice()), image: Some(image)})
 
         } else if header_root.version == [7, 2] {
             header = HeaderVersion::H72(
                                 header_root, 
                                 try!(Header70::load(&mut *file)),
                                 try!(Header72::load(&mut *file)));
-            Ok(VTFFile {header: header, resources: None})
+            Ok(VTFFile {header: header, resources: None, image: None})
 
         } else if header_root.version == [7, 1] || header_root.version == [7, 0] {
             header = HeaderVersion::H70(
                                 header_root, 
                                 try!(Header70::load(&mut *file)));
-            Ok(VTFFile {header: header, resources: None})
+            Ok(VTFFile {header: header, resources: None, image: None})
 
         } else {
             Err(VTFLoadError::VTF(VTFError::HeaderVersion))
