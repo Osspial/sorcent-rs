@@ -61,14 +61,22 @@ pub struct Dxt1Raw {
 
 impl Dxt1Raw {
     pub fn load<R>(source: &mut R, length: usize) -> Result<Dxt1Raw, io::Error> where R: Read {
+        use std::mem;
         use std::mem::transmute;
 
-        // Vector of each block of data, with the first four bytes of each block being
-        // the colors and the last four bytes being the color data itself. The capacity
-        // is set to the length / 8, as each block is 8 bytes long. 
-        let mut data: Vec<(u16, u16, [u8; 4])> = Vec::with_capacity(length / 32);
-        unsafe{ data.set_len(length / 64)};
-        try!(source.read(unsafe{ transmute(&mut data[..]) }));
+        let mut data_raw: Vec<u8> = Vec::with_capacity(length);
+        unsafe{ data_raw.set_len(length) };
+        try!(source.read(unsafe{ transmute(&mut data_raw[..]) }));
+        
+        // Reinterprets the bytes read into data_raw as a vector of pixel chunks
+        let data: Vec<(u16, u16, [u8; 4])> = unsafe{
+                                                    let p = data_raw.as_mut_ptr();
+                                                    let len = data_raw.len();
+                                                    let cap = data_raw.capacity();
+
+                                                    mem::forget(data_raw);
+                                                    Vec::from_raw_parts(transmute(p), len / 16, cap / 16)
+                                                };
 
         let mut rgb: Vec<Rgb888> = Vec::with_capacity(length * 2);
         unsafe{ rgb.set_len(length * 2) };
@@ -77,21 +85,20 @@ impl Dxt1Raw {
         for c in &data {
             let c0 = Rgb565::load(c.0).to_rgb888();
             let c3 = Rgb565::load(c.1).to_rgb888();
-            let c1 = interp_color(&c0, &c3, false);
-            let c2 = interp_color(&c0, &c3, true);
+            let c1 = interp_color(&c0, &c3, true);
+            let c2 = interp_color(&c0, &c3, false); 
 
-            println!("{:?} {:?} {:?} {:?}", c0, c1, c2, c3);
-
-            let color_data: [u8; 16] = [c.2[0] >> 6, c.2[0] >> 4, c.2[0] >> 2, c.2[0],
-                                        c.2[1] >> 6, c.2[1] >> 4, c.2[1] >> 2, c.2[1],
-                                        c.2[2] >> 6, c.2[2] >> 4, c.2[2] >> 2, c.2[2],
-                                        c.2[3] >> 6, c.2[3] >> 4, c.2[3] >> 2, c.2[3]];
+            let color_data: [u8; 16] = [c.2[0] >> 6, c.2[0] >> 4 & 3, c.2[0] >> 2 & 3, c.2[0] & 3,
+                                        c.2[1] >> 6, c.2[1] >> 4 & 3, c.2[1] >> 2 & 3, c.2[1] & 3,
+                                        c.2[2] >> 6, c.2[2] >> 4 & 3, c.2[2] >> 2 & 3, c.2[2] & 3,
+                                        c.2[3] >> 6, c.2[3] >> 4 & 3, c.2[3] >> 2 & 3, c.2[3] & 3];
 
             // The index for adding data to the chunk array
             let mut index = 0;
             // The line of the chunk to write data to
             let mut cline = 0;
             for co in color_data.into_iter() {
+                print!("{:b} ", *co);
                 match *co & 3 {
                     0 => rgb[index + line_len*cline] = c0.clone(),
                     1 => rgb[index + line_len*cline] = c1.clone(),
@@ -106,6 +113,7 @@ impl Dxt1Raw {
                     cline += 1;
                 }
             }
+            println!("");
         }
 
         Ok(Dxt1Raw {data: data, rgb888: rgb})

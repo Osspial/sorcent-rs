@@ -16,7 +16,7 @@ use self::dxt::Dxt1Raw;
 pub struct VTFFile {
     header: HeaderVersion,
     resources: Option<Box<[Resource]>>,
-    image: Option<Dxt1Raw>
+    pub image: Option<Dxt1Raw>
 }
 
 impl VTFFile {
@@ -59,7 +59,7 @@ impl VTFFile {
                 ri += 1;
             }
 
-            let image = Dxt1Raw::load(&mut *file, 16*16).unwrap();
+            let image = Dxt1Raw::load(&mut *file, 16*16/2).unwrap();
 
             Ok(VTFFile {header: header, resources: Some(resources.into_boxed_slice()), image: Some(image)})
 
