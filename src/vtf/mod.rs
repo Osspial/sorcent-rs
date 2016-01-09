@@ -16,6 +16,7 @@ use self::dxt::Dxt1Raw;
 pub struct VTFFile {
     header: HeaderVersion,
     resources: Option<Box<[Resource]>>,
+    pub thumb: Option<Dxt1Raw>,
     pub image: Option<Dxt1Raw>
 }
 
@@ -59,22 +60,32 @@ impl VTFFile {
                 ri += 1;
             }
 
-            let image = Dxt1Raw::load(&mut *file, 16*16/2).unwrap();
+            let thumb = Dxt1Raw::load(&mut *file, 16, 16).unwrap();
 
-            Ok(VTFFile {header: header, resources: Some(resources.into_boxed_slice()), image: Some(image)})
+            //Skip over mipmap data
+            //TODO: Generalize
+            {
+                let mut throwaway: [u8; 174776] = [0; 174776];
+                file.read(&mut throwaway[..]).unwrap();
+            }
+
+            let image = Dxt1Raw::load(&mut *file, 1024, 1024).unwrap();
+            println!("ok");
+
+            Ok(VTFFile {header: header, resources: Some(resources.into_boxed_slice()), thumb: Some(thumb), image: Some(image)})
 
         } else if header_root.version == [7, 2] {
             header = HeaderVersion::H72(
                                 header_root, 
                                 try!(Header70::load(&mut *file)),
                                 try!(Header72::load(&mut *file)));
-            Ok(VTFFile {header: header, resources: None, image: None})
+            Ok(VTFFile {header: header, resources: None, thumb: None, image: None})
 
         } else if header_root.version == [7, 1] || header_root.version == [7, 0] {
             header = HeaderVersion::H70(
                                 header_root, 
                                 try!(Header70::load(&mut *file)));
-            Ok(VTFFile {header: header, resources: None, image: None})
+            Ok(VTFFile {header: header, resources: None, thumb: None, image: None})
 
         } else {
             Err(VTFLoadError::VTF(VTFError::HeaderVersion))

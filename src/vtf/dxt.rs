@@ -60,50 +60,54 @@ pub struct Dxt1Raw {
 }
 
 impl Dxt1Raw {
-    pub fn load<R>(source: &mut R, length: usize) -> Result<Dxt1Raw, io::Error> where R: Read {
-        use std::mem;
+    pub fn load<R>(source: &mut R, width: u16, height: u16) -> Result<Dxt1Raw, io::Error> where R: Read {
         use std::mem::transmute;
 
-        let mut data_raw: Vec<u8> = Vec::with_capacity(length);
-        unsafe{ data_raw.set_len(length) };
-        try!(source.read(unsafe{ transmute(&mut data_raw[..]) }));
+        let pix_count = width as usize * height as usize;
+        println!("{}", pix_count);
+        /*let mut data_raw: Vec<u8> = Vec::with_capacity(pix_count);
+        unsafe{ data_raw.set_len(pix_count) };
+        try!(source.read(unsafe{ transmute(&mut data_raw[..]) }));*/
         
-        // Reinterprets the bytes read into data_raw as a vector of pixel chunks
-        let data: Vec<(u16, u16, [u8; 4])> = unsafe{
-                                                    let p = data_raw.as_mut_ptr();
-                                                    let len = data_raw.len();
-                                                    let cap = data_raw.capacity();
+        let mut data: Vec<(u16, u16, [u8; 4])> = Vec::with_capacity(pix_count / 16);
 
-                                                    mem::forget(data_raw);
-                                                    Vec::from_raw_parts(transmute(p), len / 16, cap / 16)
-                                                };
+        {
+            let mut data_buffer: [u8; 8] = [0; 8];
 
-        let mut rgb: Vec<Rgb888> = Vec::with_capacity(length * 2);
-        unsafe{ rgb.set_len(length * 2) };
-        let line_len = ((length * 2) as f32).sqrt() as usize;
+            let mut index = 0;
+            while index < pix_count / 2{
+                source.read(&mut data_buffer).unwrap();
+                data.push(unsafe{ transmute(data_buffer) });
+                index += 8;
+            }
+        }
 
+        let mut rgb: Vec<Rgb888> = Vec::with_capacity(pix_count);
+        unsafe{ rgb.set_len(pix_count) };
+
+        let mut chunk_offset = 0;
         for c in &data {
             let c0 = Rgb565::load(c.0).to_rgb888();
-            let c3 = Rgb565::load(c.1).to_rgb888();
-            let c1 = interp_color(&c0, &c3, true);
-            let c2 = interp_color(&c0, &c3, false); 
+            let c1 = Rgb565::load(c.1).to_rgb888();
+            let c2 = interp_color(&c0, &c1, true);
+            let c3 = interp_color(&c0, &c1, false); 
 
-            let color_data: [u8; 16] = [c.2[0] >> 6, c.2[0] >> 4 & 3, c.2[0] >> 2 & 3, c.2[0] & 3,
-                                        c.2[1] >> 6, c.2[1] >> 4 & 3, c.2[1] >> 2 & 3, c.2[1] & 3,
-                                        c.2[2] >> 6, c.2[2] >> 4 & 3, c.2[2] >> 2 & 3, c.2[2] & 3,
-                                        c.2[3] >> 6, c.2[3] >> 4 & 3, c.2[3] >> 2 & 3, c.2[3] & 3];
+
+            let color_data: [u8; 16] = [c.2[0] & 3, c.2[0] >> 2 & 3, c.2[0] >> 4 & 3, c.2[0] >> 6 & 3,
+                                        c.2[1] & 3, c.2[1] >> 2 & 3, c.2[1] >> 4 & 3, c.2[1] >> 6 & 3,
+                                        c.2[2] & 3, c.2[2] >> 2 & 3, c.2[2] >> 4 & 3, c.2[2] >> 6 & 3,
+                                        c.2[3] & 3, c.2[3] >> 2 & 3, c.2[3] >> 4 & 3, c.2[3] >> 6 & 3];
 
             // The index for adding data to the chunk array
-            let mut index = 0;
+            let mut index: usize = 0;
             // The line of the chunk to write data to
             let mut cline = 0;
-            for co in color_data.into_iter() {
-                print!("{:b} ", *co);
+            for co in &color_data {
                 match *co & 3 {
-                    0 => rgb[index + line_len*cline] = c0.clone(),
-                    1 => rgb[index + line_len*cline] = c1.clone(),
-                    2 => rgb[index + line_len*cline] = c2.clone(),
-                    3 => rgb[index + line_len*cline] = c3.clone(),
+                    0 => rgb[chunk_offset + index + (width*cline) as usize] = c0.clone(),
+                    1 => rgb[chunk_offset + index + (width*cline) as usize] = c1.clone(),
+                    2 => rgb[chunk_offset + index + (width*cline) as usize] = c2.clone(),
+                    3 => rgb[chunk_offset + index + (width*cline) as usize] = c3.clone(),
                     _ => unreachable!()
                 }
 
@@ -113,8 +117,14 @@ impl Dxt1Raw {
                     cline += 1;
                 }
             }
-            println!("");
+            
+            chunk_offset += 4;
+            let wusize = width as usize;
+            if chunk_offset % wusize == 0 && chunk_offset >= wusize {
+                chunk_offset += wusize * 3;
+            }
         }
+        println!("done");
 
         Ok(Dxt1Raw {data: data, rgb888: rgb})
     }
