@@ -54,13 +54,14 @@ pub struct Rgba8888 {
 }
 
 #[derive(Debug)]
-pub struct Dxt1Raw {
+pub struct Dxt1 {
     pub data: Vec<(u16, u16, [u8; 4])>,
-    pub rgb888: Vec<Rgb888>
+    width: u16,
+    height: u16
 }
 
-impl Dxt1Raw {
-    pub fn load<R>(source: &mut R, width: u16, height: u16) -> Result<Dxt1Raw, io::Error> where R: Read {
+impl Dxt1 {
+    pub fn load<R>(source: &mut R, width: u16, height: u16) -> Result<Dxt1, io::Error> where R: Read {
         use std::mem::transmute;
 
         // Internally to the VTF file format, there are no images that are
@@ -85,17 +86,23 @@ impl Dxt1Raw {
 
             let mut index = 0;
             while index < pix_count / 2{
-                source.read(&mut data_buffer).unwrap();
+                try!(source.read(&mut data_buffer));
                 data.push(unsafe{ transmute(data_buffer) });
                 index += 8;
             }
         }
 
+        Ok(Dxt1 {data: data, width: width, height: height})
+    }
+
+    pub fn to_rgb888(&self) -> Vec<Rgb888> {
+
+        let pix_count = self.width as usize * self.height as usize;
         let mut rgb: Vec<Rgb888> = Vec::with_capacity(pix_count);
         unsafe{ rgb.set_len(pix_count) };
 
         let mut chunk_offset = 0;
-        for c in &data {
+        for c in &self.data {
             let c0 = Rgb565::load(c.0).to_rgb888();
             let c1 = Rgb565::load(c.1).to_rgb888();
             let c2 = interp_color(&c0, &c1, true);
@@ -113,10 +120,10 @@ impl Dxt1Raw {
             let mut cline = 0;
             for co in &color_data {
                 match *co & 3 {
-                    0 => rgb[chunk_offset + index + (width*cline) as usize] = c0.clone(),
-                    1 => rgb[chunk_offset + index + (width*cline) as usize] = c1.clone(),
-                    2 => rgb[chunk_offset + index + (width*cline) as usize] = c2.clone(),
-                    3 => rgb[chunk_offset + index + (width*cline) as usize] = c3.clone(),
+                    0 => rgb[chunk_offset + index + (self.width*cline) as usize] = c0.clone(),
+                    1 => rgb[chunk_offset + index + (self.width*cline) as usize] = c1.clone(),
+                    2 => rgb[chunk_offset + index + (self.width*cline) as usize] = c2.clone(),
+                    3 => rgb[chunk_offset + index + (self.width*cline) as usize] = c3.clone(),
                     _ => unreachable!()
                 }
 
@@ -128,13 +135,13 @@ impl Dxt1Raw {
             }
             
             chunk_offset += 4;
-            let wusize = width as usize;
+            let wusize = self.width as usize;
             if chunk_offset % wusize == 0 && chunk_offset >= wusize {
                 chunk_offset += wusize * 3;
             }
         }
 
-        Ok(Dxt1Raw {data: data, rgb888: rgb})
+        rgb
     }
 }
 

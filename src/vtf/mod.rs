@@ -5,20 +5,20 @@ mod error;
 pub mod dxt;
 
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
+use std::io::{Seek, SeekFrom};
 use std::mem;
 
 use self::format::{Data, HeaderRoot, Header70, Header72, Header73, Resource, ResourceID, HeaderVersion};
 use self::error::{VTFLoadError, VTFError};
-use self::dxt::Dxt1Raw;
+use self::dxt::Dxt1;
 
 #[derive(Debug)]
 pub struct VTFFile {
     pub header: HeaderVersion,
     pub resources: Option<Box<[Resource]>>,
-    pub thumb: Option<Dxt1Raw>,
-    pub mips: Option<Vec<Dxt1Raw>>,
-    pub image: Option<Dxt1Raw>
+    pub thumb: Option<Dxt1>,
+    pub mips: Option<Vec<Dxt1>>,
+    pub image: Option<Dxt1>
 }
 
 impl VTFFile {
@@ -43,9 +43,9 @@ impl VTFFile {
 
             
             
-            let thumb: Dxt1Raw;
-            let mut mips: Vec<Dxt1Raw>;
-            let image: Dxt1Raw;
+            let thumb: Dxt1;
+            let mut mips: Vec<Dxt1>;
+            let image: Dxt1;
             //Create a vector with a capacity of the header's listed resource count
             let mut resources: Vec<Resource>;
             {
@@ -77,7 +77,7 @@ impl VTFFile {
                 let (thumb_ri, image_ri) = (thumb_ri, image_ri); //Remove mutability from indices
 
                 file.seek(SeekFrom::Start(resources[thumb_ri].data as u64)).unwrap();
-                thumb = try!(Dxt1Raw::load(&mut *file, header70.thumbnail_width as u16, header70.thumbnail_height as u16).map_err(VTFLoadError::Io));
+                thumb = try!(Dxt1::load(&mut *file, header70.thumbnail_width as u16, header70.thumbnail_height as u16).map_err(VTFLoadError::Io));
 
 
                 file.seek(SeekFrom::Start(resources[image_ri].data as u64)).unwrap();
@@ -89,14 +89,14 @@ impl VTFFile {
                     let mut mip_width = header70.width / 2u16.pow(header70.mip_count as u32 - 1);
                     let mut mip_height = header70.height / 2u16.pow(header70.mip_count as u32 - 1);
                     while mip_width < header70.width {
-                        mips.push(Dxt1Raw::load(&mut *file, mip_width, mip_height).unwrap());
+                        mips.push(Dxt1::load(&mut *file, mip_width, mip_height).unwrap());
                         mip_width *= 2;
                         mip_height *= 2;
                     }
                 }
                 
 
-                image = try!(Dxt1Raw::load(&mut *file, header70.width, header70.height).map_err(VTFLoadError::Io));
+                image = try!(Dxt1::load(&mut *file, header70.width, header70.height).map_err(VTFLoadError::Io));
             }
 
             Ok(VTFFile {header: header, resources: Some(resources.into_boxed_slice()), thumb: Some(thumb), mips: Some(mips), image: Some(image)})
