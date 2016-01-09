@@ -4,16 +4,16 @@ extern crate image;
 use std::fs::File;
 use std::io::Read;
 use sorcent::vtf::VTFFile;
-use image::jpeg::JPEGEncoder;
+use image::png::PNGEncoder;
 
 fn main() {
     
-    let mut file = File::open("wood_wall001.vtf").unwrap();
+    let mut file = File::open("target/wood_wall001.vtf").unwrap();
     let vtf_file = VTFFile::open(&mut file).unwrap();
     //println!("{:#?}", vtf_file);
     {
         let vtf_image = &vtf_file.image.unwrap().rgb888;
-        let mut jpg_file = File::create("wood_wall.jpg").unwrap();
+        let mut png_file = File::create("target/wood_wall.png").unwrap();
         println!("almost");
 
         println!("{}", vtf_image.len());
@@ -25,7 +25,7 @@ fn main() {
             rgb.push(c.blue);
         }
 
-        JPEGEncoder::new(&mut jpg_file).encode(&rgb[..], 1024, 1024, image::ColorType::RGB(8)).unwrap();
+        PNGEncoder::new(&mut png_file).encode(&rgb[..], 1024, 1024, image::ColorType::RGB(8)).unwrap();
         println!("finally");
     }
 
