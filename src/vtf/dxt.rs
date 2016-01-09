@@ -63,11 +63,20 @@ impl Dxt1Raw {
     pub fn load<R>(source: &mut R, width: u16, height: u16) -> Result<Dxt1Raw, io::Error> where R: Read {
         use std::mem::transmute;
 
+        // Internally to the VTF file format, there are no images that are
+        // smaller than 4. This corrects for that. 
+        let mut width = width;
+        let mut height = height;
+        if width < 4 {
+            width = 4;
+        }
+        if height < 4 {
+            height = 4;
+        }
+        let width = width;
+        let height = height;
+
         let pix_count = width as usize * height as usize;
-        println!("{}", pix_count);
-        /*let mut data_raw: Vec<u8> = Vec::with_capacity(pix_count);
-        unsafe{ data_raw.set_len(pix_count) };
-        try!(source.read(unsafe{ transmute(&mut data_raw[..]) }));*/
         
         let mut data: Vec<(u16, u16, [u8; 4])> = Vec::with_capacity(pix_count / 16);
 
@@ -124,7 +133,6 @@ impl Dxt1Raw {
                 chunk_offset += wusize * 3;
             }
         }
-        println!("done");
 
         Ok(Dxt1Raw {data: data, rgb888: rgb})
     }

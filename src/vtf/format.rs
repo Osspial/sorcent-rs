@@ -190,8 +190,8 @@ impl Data for Header73 {
 
 #[derive(Debug)]
 pub struct Resource {
-    id          :ResourceID,
-    data        :u32
+    pub id          :ResourceID,
+    pub data        :u32
 }
 
 impl Data for Resource {
