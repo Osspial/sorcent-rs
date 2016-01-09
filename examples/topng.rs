@@ -7,12 +7,12 @@ use image::png::PNGEncoder;
 
 fn main() {
     
-    let mut file = File::open("target/dirtground003.vtf").unwrap();
+    let mut file = File::open("target/concretefloor003.vtf").unwrap();
     let vtf_file = VTFFile::open(&mut file).unwrap();
     {
         let vtf_image = &vtf_file.image.unwrap().to_rgb888();
         println!("Image converted to RGB888");
-        let mut png_file = File::create("target/dirtground.png").unwrap();
+        let mut png_file = File::create("target/concretefloor003.png").unwrap();
 
         let mut rgb: Vec<u8> = Vec::with_capacity(vtf_image.len() * 3);
 

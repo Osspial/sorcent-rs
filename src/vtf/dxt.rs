@@ -55,7 +55,7 @@ pub struct Rgba8888 {
 
 #[derive(Debug)]
 pub struct Dxt1 {
-    pub data: Vec<(u16, u16, [u8; 4])>,
+    data: Vec<(u16, u16, [u8; 4])>,
     width: u16,
     height: u16
 }
