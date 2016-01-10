@@ -18,7 +18,6 @@ impl Rgb565 {
     }
 
     pub fn to_rgb888(&self) -> Rgb888 {
-
         //Conversion factor for 5-bit to 8-bit
         const CONV58: f32 = 255.0/31.0;
         //Conversion factor for 6-bit to 8-bit
@@ -65,7 +64,7 @@ impl Dxt1 {
         use std::mem::transmute;
 
         // Internally to the VTF file format, there are no images that are
-        // smaller than 4. This corrects for that. 
+        // smaller than 4x4. This corrects for that. 
         let mut width = width;
         let mut height = height;
         if width < 4 {
@@ -74,8 +73,8 @@ impl Dxt1 {
         if height < 4 {
             height = 4;
         }
-        let width = width;
-        let height = height;
+        let (width, height) = (width, height);
+
 
         let pix_count = width as usize * height as usize;
         
