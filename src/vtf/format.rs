@@ -13,7 +13,7 @@ pub enum HeaderVersion {
 }
 
 impl HeaderVersion {
-    pub fn get_root<'h>(&'h self) -> &'h HeaderRoot {
+    pub fn get_root(&self) -> &HeaderRoot {
         match self {
             &HeaderVersion::H70(ref r, _) => r,
             &HeaderVersion::H72(ref r, _, _) => r,
@@ -21,7 +21,7 @@ impl HeaderVersion {
         }
     }
 
-    pub fn get_h70<'h>(&'h self) -> &'h Header70 {
+    pub fn get_h70(&self) -> &Header70 {
         match self {
             &HeaderVersion::H70(_, ref h70) => h70,
             &HeaderVersion::H72(_, ref h70, _) => h70,
@@ -29,7 +29,7 @@ impl HeaderVersion {
         }
     }
     
-    pub fn get_h72<'h>(&'h self) -> Option<&'h Header72> {
+    pub fn get_h72(&self) -> Option<&Header72> {
         match self {
             &HeaderVersion::H72(_, _, ref h72) => Some(h72),
             &HeaderVersion::H73(_, _, ref h72, _) => Some(h72),
@@ -37,7 +37,7 @@ impl HeaderVersion {
         }
     }
 
-    pub fn get_h73<'h>(&'h self) -> Option<&'h Header73> {
+    pub fn get_h73(&self) -> Option<&Header73> {
         match self {
             &HeaderVersion::H73(_, _, _, ref h73) => Some(h73),
             _ => None
@@ -339,7 +339,7 @@ impl FromPrimitive for ResourceID {
 /// An enum with possible image formats. Documentation taken from
 /// VTFFormat.h in VTFLib by Neil Jedrzejewski & Ryan Gregg
 #[allow(non_camel_case_types)]
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[repr(i32)]
 pub enum ImageFormat {
     /// Red, Green, Blue, Alpha - 32 bpp
