@@ -55,32 +55,33 @@ pub struct Rgba8888 {
     pub alpha: u8
 }
 
+
 #[derive(Debug, Clone)]
-pub enum ImageType {
+pub enum ImageFormatWrapper {
     DXT1(Dxt1),
     DXT5(Dxt5)
 }
 
-impl ImageType {
-    pub fn load<R>(source: &mut R, width: u16, height: u16, format: ImageFormat) -> Result<ImageType, io::Error> where R: Read {
+impl ImageFormatWrapper {
+    pub fn load<R>(source: &mut R, width: u16, height: u16, format: ImageFormat) -> Result<ImageFormatWrapper, io::Error> where R: Read {
         match format {
-            ImageFormat::DXT1 => Ok(ImageType::DXT1(try!(Dxt1::load(&mut *source, width, height)))),
-            ImageFormat::DXT5 => Ok(ImageType::DXT5(try!(Dxt5::load(&mut *source, width, height)))),
+            ImageFormat::DXT1 => Ok(ImageFormatWrapper::DXT1(try!(Dxt1::load(&mut *source, width, height)))),
+            ImageFormat::DXT5 => Ok(ImageFormatWrapper::DXT5(try!(Dxt5::load(&mut *source, width, height)))),
             _ => panic!("Unsupported image format given!")
         }
     }
 
     pub fn to_rgb888(&self) -> Option<Vec<Rgb888>> {
         match self {
-            &ImageType::DXT1(ref im) => Some(im.to_rgb888()),
-            &ImageType::DXT5(_) => None
+            &ImageFormatWrapper::DXT1(ref im) => Some(im.to_rgb888()),
+            &ImageFormatWrapper::DXT5(_) => None
         }
     }
 
     pub fn to_rgba8888(&self) -> Option<Vec<Rgba8888>> {
         match self {
-            &ImageType::DXT5(ref im) => Some(im.to_rgba8888()),
-            &ImageType::DXT1(_) => None
+            &ImageFormatWrapper::DXT5(ref im) => Some(im.to_rgba8888()),
+            &ImageFormatWrapper::DXT1(_) => None
         }
     }
 }
@@ -188,7 +189,6 @@ pub struct Dxt5 {
 impl Dxt5 {
     pub fn load<R>(source: &mut R, width: u16, height: u16) -> Result<Dxt5, io::Error> where R: Read {
         use std::mem::transmute;
-        use std::mem::size_of;
 
         // Internally to the VTF file format, there are no images that are
         // smaller than 4x4. This corrects for that. 
@@ -287,10 +287,7 @@ impl Dxt5 {
             let alpha_data: [u8; 16] = {
                 use std::mem::transmute;
 
-                
-                //let alpha: u64 = unsafe{ transmute([00, 00, c.5[5], c.5[4], c.5[3], c.5[2], c.5[1], c.5[0]]) };
                 let alpha: u64 = unsafe{ transmute([c.2[0], c.2[1], c.2[2], c.2[3], c.2[4], c.2[5], 00, 00]) };
-
                 [(alpha & 7)       as u8, (alpha >> 3 & 7)  as u8, (alpha >> 6 & 7)  as u8, (alpha >> 9 & 7)  as u8,
                  (alpha >> 11 & 7) as u8, (alpha >> 15 & 7) as u8, (alpha >> 18 & 7) as u8, (alpha >> 21 & 7) as u8,
                  (alpha >> 24 & 7) as u8, (alpha >> 27 & 7) as u8, (alpha >> 30 & 7) as u8, (alpha >> 33 & 7) as u8,
