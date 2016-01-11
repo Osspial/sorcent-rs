@@ -59,7 +59,9 @@ pub struct Rgba8888 {
 #[derive(Debug, Clone)]
 pub enum ImageFormatWrapper {
     DXT1(Dxt1),
-    DXT5(Dxt5)
+    DXT5(Dxt5),
+    RGB888(Vec<Rgb888>),
+    RGBA8888(Vec<Rgba8888>)
 }
 
 impl ImageFormatWrapper {
@@ -74,14 +76,18 @@ impl ImageFormatWrapper {
     pub fn to_rgb888(&self) -> Option<Vec<Rgb888>> {
         match self {
             &ImageFormatWrapper::DXT1(ref im) => Some(im.to_rgb888()),
-            &ImageFormatWrapper::DXT5(_) => None
+            &ImageFormatWrapper::DXT5(_) => None,
+            &ImageFormatWrapper::RGB888(ref im) => Some(im.clone()),
+            &ImageFormatWrapper::RGBA8888(_) => None
         }
     }
 
     pub fn to_rgba8888(&self) -> Option<Vec<Rgba8888>> {
         match self {
+            &ImageFormatWrapper::DXT1(_) => None,
             &ImageFormatWrapper::DXT5(ref im) => Some(im.to_rgba8888()),
-            &ImageFormatWrapper::DXT1(_) => None
+            &ImageFormatWrapper::RGB888(_) => None,
+            &ImageFormatWrapper::RGBA8888(ref im) => Some(im.clone())
         }
     }
 }
