@@ -16,7 +16,7 @@ use self::image::ImageFormatWrapper;
 #[derive(Debug)]
 pub struct VTFFile {
     pub header: HeaderVersion,
-    pub resources: Option<Box<[Resource]>>,
+    pub resources: Option<Vec<Resource>>,
     pub thumb: ImageFormatWrapper,
     pub mips: Vec<ImageFormatWrapper>,
     pub image: ImageFormatWrapper
@@ -88,7 +88,7 @@ impl VTFFile {
                 image = try!(ImageFormatWrapper::load(&mut *file, header70.width, header70.height, header70.image_format).map_err(VTFLoadError::Io));
             }
 
-            Ok(VTFFile {header: header, resources: Some(resources.into_boxed_slice()), thumb: thumb, mips: mips, image: image})
+            Ok(VTFFile {header: header, resources: Some(resources), thumb: thumb, mips: mips, image: image})
 
 
         } else if header_root.version == [7, 2] {

@@ -5,24 +5,26 @@ use super::format::ImageFormat;
 
 #[derive(Debug, Clone)]
 pub struct Rgb565 {
-    pub red: u8, //Five bits with three bits of padding
-    pub green: u8, //Six bits with two bits of padding
-    pub blue: u8 //Five bits with three bits of padding
+    pub red: u8, // Five bits with three bits of padding
+    pub green: u8, // Six bits with two bits of padding
+    pub blue: u8 // Five bits with three bits of padding
 }
 
 impl Rgb565 {
-    pub fn load(source: u16) -> Rgb565{
+    pub fn load(source: u16) -> Rgb565 {
         Rgb565 {
             red: ((source & 63488) >> 11) as u8,
             green: ((source & 2016) >> 5) as u8,
             blue: (source & 31) as u8
         }
     }
+}
 
-    pub fn to_rgb888(&self) -> Rgb888 {
-        //Conversion factor for 5-bit to 8-bit
+impl ColorType for Rgb565 {
+    fn to_rgb888(&self) -> Rgb888 {
+        // Conversion factor for 5-bit to 8-bit
         const CONV58: f32 = 255.0/31.0;
-        //Conversion factor for 6-bit to 8-bit
+        // Conversion factor for 6-bit to 8-bit
         const CONV68: f32 = 255.0/63.0;
 
         Rgb888 {
@@ -31,13 +33,35 @@ impl Rgb565 {
             blue: (self.blue as f32 * CONV58) as u8,
         }
     }
+
+    fn from_rgb888(rgb: Rgb888) -> Rgb565 {
+        // Conversion factor from 8-bit to 5-bit
+        const CONV85: f32 = 31.0/255.0;
+        // Conversion factor from 8-bit to 6-bit
+        const CONV86: f32 = 63.0/255.0;
+
+        Rgb565 {
+            red: (rgb.red as f32 * CONV85) as u8,
+            green: (rgb.green as f32 * CONV86) as u8,
+            blue: (rgb.blue as f32 * CONV85) as u8,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
+#[repr(C)]
 pub struct Rgb888 {
     pub red: u8,
     pub green: u8,
     pub blue: u8
+}
+
+#[derive(Debug, Clone)]
+#[repr(C)]
+pub struct Bgr888 {
+    pub blue: u8,
+    pub green: u8,
+    pub red: u8
 }
 
 #[derive(Debug, Clone)]
@@ -48,11 +72,26 @@ pub struct Rgb161616 {
 }
 
 #[derive(Debug, Clone)]
+#[repr(C)]
 pub struct Rgba8888 {
     pub red: u8,
     pub green: u8,
     pub blue: u8,
     pub alpha: u8
+}
+
+#[derive(Debug, Clone)]
+#[repr(C)]
+pub struct Bgra8888 {
+    pub blue: u8,
+    pub green: u8,
+    pub red: u8,
+    pub alpha: u8
+}
+
+pub trait ColorType where Self: Sized {
+    fn to_rgb888(&self) -> Rgb888;
+    fn from_rgb888(rgb: Rgb888) -> Self;
 }
 
 
@@ -82,12 +121,26 @@ impl ImageFormatWrapper {
         }
     }
 
+    pub fn to_rgb888_raw(&self) -> Option<Vec<u8>> {
+        match self {
+            &ImageFormatWrapper::DXT1(ref im) => Some(im.to_rgb888_raw()),
+            _ => None //TODO: remove _ =>
+        }
+    }
+
     pub fn to_rgba8888(&self) -> Option<Vec<Rgba8888>> {
         match self {
             &ImageFormatWrapper::DXT1(_) => None,
             &ImageFormatWrapper::DXT5(ref im) => Some(im.to_rgba8888()),
             &ImageFormatWrapper::RGB888(_) => None,
             &ImageFormatWrapper::RGBA8888(ref im) => Some(im.clone())
+        }
+    }
+
+    pub fn to_rgba8888_raw(&self) -> Option<Vec<u8>> {
+        match self {
+            &ImageFormatWrapper::DXT5(ref im) => Some(im.to_rgba8888_raw()),
+            _ => None //TODO: remove _ =>
         }
     }
 }
@@ -181,6 +234,21 @@ impl Dxt1 {
         }
 
         rgb
+    }
+
+    fn to_rgb888_raw(&self) -> Vec<u8> {
+        use std::mem;
+
+        let mut rgb = self.to_rgb888();
+        unsafe{
+            let ptr = rgb.as_mut_ptr();
+            let len = rgb.len() * 3;
+            let cap = rgb.capacity() * 3;
+
+            mem::forget(rgb);
+
+            Vec::from_raw_parts(mem::transmute(ptr), len, cap)
+        }
     }
 }
 
@@ -334,6 +402,21 @@ impl Dxt5 {
 
         rgba
     }
+
+    fn to_rgba8888_raw(&self) -> Vec<u8> {
+        use std::mem;
+
+        let mut rgba = self.to_rgba8888();
+        unsafe{
+            let ptr = rgba.as_mut_ptr();
+            let len = rgba.len() * 4;
+            let cap = rgba.capacity() * 4;
+
+            mem::forget(rgba);
+
+            Vec::from_raw_parts(mem::transmute(ptr), len, cap)
+        }
+    }
 }
 
 /// Interpolates between colors c0 and c1. When factor is false,
@@ -359,7 +442,8 @@ fn interp_color(c0: &Rgb888, c1: &Rgb888, factor: bool) -> Rgb888 {
 
 /// Interpolates between alphas a0 and a1. Factor is on a scale of
 /// 0-3, with 0 being mostly a0 and 3 being mostly a1. Anything
-/// outside of that range has undefined behavior. 
+/// outside of that range has undefined behavior.
+#[inline]
 fn interp_alpha_8bit(a0: u8, a1: u8, factor: u8) -> u8 {
     let a0 = a0 as u32;
     let a1 = a1 as u32;
@@ -369,7 +453,8 @@ fn interp_alpha_8bit(a0: u8, a1: u8, factor: u8) -> u8 {
 
 /// Interpolates between alphas a0 and a1. Factor is on a scale of
 /// 0-5, with 0 being mostly a0 and 5 being mostly a1. Anything
-/// outside of that range has undefined behavior. 
+/// outside of that range has undefined behavior.
+#[inline]
 fn interp_alpha_6bit(a0: u8, a1: u8, factor: u8) -> u8 {
     let a0 = a0 as u16;
     let a1 = a1 as u16;
