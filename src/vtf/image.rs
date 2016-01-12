@@ -98,6 +98,7 @@ pub trait ColorType where Self: Sized {
 #[derive(Debug, Clone)]
 pub enum ImageFormatWrapper {
     DXT1(Dxt1),
+    DXT3(Dxt3),
     DXT5(Dxt5),
     RGB888(Vec<Rgb888>),
     RGBA8888(Vec<Rgba8888>)
@@ -115,6 +116,7 @@ impl ImageFormatWrapper {
     pub fn to_rgb888(&self) -> Option<Vec<Rgb888>> {
         match self {
             &ImageFormatWrapper::DXT1(ref im) => Some(im.to_rgb888()),
+            &ImageFormatWrapper::DXT3(_) => None,
             &ImageFormatWrapper::DXT5(_) => None,
             &ImageFormatWrapper::RGB888(ref im) => Some(im.clone()),
             &ImageFormatWrapper::RGBA8888(_) => None
@@ -131,6 +133,7 @@ impl ImageFormatWrapper {
     pub fn to_rgba8888(&self) -> Option<Vec<Rgba8888>> {
         match self {
             &ImageFormatWrapper::DXT1(_) => None,
+            &ImageFormatWrapper::DXT3(ref im) => Some(im.to_rgba8888()),
             &ImageFormatWrapper::DXT5(ref im) => Some(im.to_rgba8888()),
             &ImageFormatWrapper::RGB888(_) => None,
             &ImageFormatWrapper::RGBA8888(ref im) => Some(im.clone())
@@ -139,6 +142,7 @@ impl ImageFormatWrapper {
 
     pub fn to_rgba8888_raw(&self) -> Option<Vec<u8>> {
         match self {
+            &ImageFormatWrapper::DXT3(ref im) => Some(im.to_rgba8888_raw()),
             &ImageFormatWrapper::DXT5(ref im) => Some(im.to_rgba8888_raw()),
             _ => None //TODO: remove _ =>
         }
@@ -236,7 +240,7 @@ impl Dxt1 {
         rgb
     }
 
-    fn to_rgb888_raw(&self) -> Vec<u8> {
+    pub fn to_rgb888_raw(&self) -> Vec<u8> {
         use std::mem;
 
         let mut rgb = self.to_rgb888();
@@ -245,7 +249,126 @@ impl Dxt1 {
             let len = rgb.len() * 3;
             let cap = rgb.capacity() * 3;
 
-            mem::forget(rgb);
+            Vec::from_raw_parts(mem::transmute(ptr), len, cap)
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct Dxt3 {
+    data: Vec<([u8; 8], u16, u16, [u8; 4])>,
+    width: u16,
+    height: u16
+}
+
+impl Dxt3 {
+    pub fn load<R>(source: &mut R, width: u16, height: u16) -> Result<Dxt3, io::Error> where R: Read {
+        use std::mem::transmute;
+
+        // Internally to the VTF file format, there are no images that are
+        // smaller than 4x4. This corrects for that. 
+        let mut width = width;
+        let mut height = height;
+        if width < 4 {
+            width = 4;
+        }
+        if height < 4 {
+            height = 4;
+        }
+        let (width, height) = (width, height);
+
+
+        let pix_count = width as usize * height as usize;
+        
+        // Capacity is pix_count / 16 as that is the number of pixel chunks that the image gets
+        // compressed into. The reason that is the number is that each pixel chunk contains
+        // 16 pixels.
+        let mut data: Vec<([u8; 8], u16, u16, [u8; 4])> = Vec::with_capacity(pix_count / 16);
+
+        {
+            let mut data_buffer: [u8; 16] = [0; 16];
+
+            let mut index = 0;
+            while index < pix_count {
+                try!(source.read(&mut data_buffer));
+                data.push(unsafe{ transmute(data_buffer) });
+                index += 16;
+            }
+        }
+
+        Ok(Dxt3 {data: data, width: width, height: height})
+    }
+
+    pub fn to_rgba8888(&self) -> Vec<Rgba8888> {
+
+        let pix_count = self.width as usize * self.height as usize;
+        let mut rgba: Vec<Rgba8888> = Vec::with_capacity(pix_count);
+        unsafe{ rgba.set_len(pix_count) };
+
+        let mut chunk_offset = 0;
+        for c in &self.data {
+            // Compute color data
+            let c0 = Rgb565::load(c.1).to_rgb888();
+            let c1 = Rgb565::load(c.2).to_rgb888();
+            let c2 = interp_color(&c0, &c1, true);
+            let c3 = interp_color(&c0, &c1, false); 
+
+            let color_data: [u8; 16] = [c.3[0] & 3, c.3[0] >> 2 & 3, c.3[0] >> 4 & 3, c.3[0] >> 6 & 3,
+                                        c.3[1] & 3, c.3[1] >> 2 & 3, c.3[1] >> 4 & 3, c.3[1] >> 6 & 3,
+                                        c.3[2] & 3, c.3[2] >> 2 & 3, c.3[2] >> 4 & 3, c.3[2] >> 6 & 3,
+                                        c.3[3] & 3, c.3[3] >> 2 & 3, c.3[3] >> 4 & 3, c.3[3] >> 6 & 3];
+
+
+            let alpha_data: [u8; 16] = [c.0[0] & 15, c.0[0] >> 4 & 15, c.0[1] & 15, c.0[1] >> 4 & 15,
+                                        c.0[2] & 15, c.0[2] >> 4 & 15, c.0[3] & 15, c.0[3] >> 4 & 15,
+                                        c.0[4] & 15, c.0[4] >> 4 & 15, c.0[5] & 15, c.0[5] >> 4 & 15,
+                                        c.0[6] & 15, c.0[6] >> 4 & 15, c.0[7] & 15, c.0[7] >> 4 & 15];
+
+            // The index for adding data to the chunk array
+            let mut index: usize = 0;
+            // The line of the chunk to write data to
+            let mut cline = 0;
+            let mut i = 0;
+            while i < 16 {
+                let rgba_offset = chunk_offset + index + (self.width*cline) as usize;
+                match color_data[i] {
+                    0 => rgba[rgba_offset] = Rgba8888{red: c0.red, green: c0.green, blue: c0.blue, alpha: alpha_data[i] * 17},
+                    1 => rgba[rgba_offset] = Rgba8888{red: c1.red, green: c1.green, blue: c1.blue, alpha: alpha_data[i] * 17},
+                    2 => rgba[rgba_offset] = Rgba8888{red: c2.red, green: c2.green, blue: c2.blue, alpha: alpha_data[i] * 17},
+                    3 => rgba[rgba_offset] = Rgba8888{red: c3.red, green: c3.green, blue: c3.blue, alpha: alpha_data[i] * 17},
+                    _ => unreachable!()
+                }
+                
+
+                index += 1;
+                if index > 3 {
+                    index = 0;
+                    cline += 1;
+                }
+                i += 1;
+            }
+            
+            chunk_offset += 4;
+            let wusize = self.width as usize;
+            if chunk_offset % wusize == 0 && chunk_offset >= wusize {
+                chunk_offset += wusize * 3;
+            }
+        }
+
+        rgba
+    }
+
+    //TODO: Replace with trait
+    pub fn to_rgba8888_raw(&self) -> Vec<u8> {
+        use std::mem;
+
+        let mut rgba = self.to_rgba8888();
+        unsafe{
+            let ptr = rgba.as_mut_ptr();
+            let len = rgba.len() * 4;
+            let cap = rgba.capacity() * 4;
+
+            mem::forget(rgba);
 
             Vec::from_raw_parts(mem::transmute(ptr), len, cap)
         }
@@ -254,7 +377,6 @@ impl Dxt1 {
 
 #[derive(Debug, Clone)]
 pub struct Dxt5 {
-    // It's important to note that, in Dxt5, alpha comes BEFORE colors.
     data: Vec<(u8, u8, [u8; 6], u16, u16, [u8; 4])>,
     width: u16,
     height: u16
@@ -320,8 +442,8 @@ impl Dxt5 {
             // Compute alpha data
             let a0 = c.0;
             let a1 = c.1;
-            // Alpha array
-            let a: [u8; 8];
+            // Array of the raw, interpolated alpha values
+            let alookup: [u8; 8];
 
             // Note: the following if/else statement is adapted from a
             // similar alpha computation statement in VTFLib's VTFFile.cpp
@@ -331,7 +453,7 @@ impl Dxt5 {
 
                 // 8-bit alpha block.
                 // Bit code 000 = a0, 001 = a1, others are interpolated.
-                a = [
+                alookup = [
                     a0,
                     a1,
                     interp_alpha_8bit(a0, a1, 0),
@@ -346,7 +468,7 @@ impl Dxt5 {
 
                 // 6-alpha block.    
                 // Bit code 000 = alpha_0, 001 = alpha_1, others are interpolated.
-                a = [
+                alookup = [
                     a0,
                     a1,
                     interp_alpha_6bit(a0, a1, 0),
@@ -377,10 +499,10 @@ impl Dxt5 {
             while i < 16 {
                 let rgba_offset = chunk_offset + index + (self.width*cline) as usize;
                 match color_data[i] {
-                    0 => rgba[rgba_offset] = Rgba8888{red: c0.red, green: c0.green, blue: c0.blue, alpha: a[alpha_data[i] as usize]},
-                    1 => rgba[rgba_offset] = Rgba8888{red: c1.red, green: c1.green, blue: c1.blue, alpha: a[alpha_data[i] as usize]},
-                    2 => rgba[rgba_offset] = Rgba8888{red: c2.red, green: c2.green, blue: c2.blue, alpha: a[alpha_data[i] as usize]},
-                    3 => rgba[rgba_offset] = Rgba8888{red: c3.red, green: c3.green, blue: c3.blue, alpha: a[alpha_data[i] as usize]},
+                    0 => rgba[rgba_offset] = Rgba8888{red: c0.red, green: c0.green, blue: c0.blue, alpha: alookup[alpha_data[i] as usize]},
+                    1 => rgba[rgba_offset] = Rgba8888{red: c1.red, green: c1.green, blue: c1.blue, alpha: alookup[alpha_data[i] as usize]},
+                    2 => rgba[rgba_offset] = Rgba8888{red: c2.red, green: c2.green, blue: c2.blue, alpha: alookup[alpha_data[i] as usize]},
+                    3 => rgba[rgba_offset] = Rgba8888{red: c3.red, green: c3.green, blue: c3.blue, alpha: alookup[alpha_data[i] as usize]},
                     _ => unreachable!()
                 }
                 
@@ -403,7 +525,7 @@ impl Dxt5 {
         rgba
     }
 
-    fn to_rgba8888_raw(&self) -> Vec<u8> {
+    pub fn to_rgba8888_raw(&self) -> Vec<u8> {
         use std::mem;
 
         let mut rgba = self.to_rgba8888();
