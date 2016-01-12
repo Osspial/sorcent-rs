@@ -3,6 +3,7 @@ extern crate image;
 
 use std::fs::File;
 use sorcent::vtf::VTFFile;
+use sorcent::vtf::image::VTFImage;
 use image::png::PNGEncoder;
 
 fn main() {
@@ -10,7 +11,7 @@ fn main() {
     let vtf_file = VTFFile::open(&mut file).unwrap();
     
     //let vtf_image = vtf_file.image.to_rgba8888().unwrap();
-    let rgb = vtf_file.image.to_rgba8888_raw().unwrap();
+    let rgb = vtf_file.image.expose().to_rgba8888_raw();
     println!("Image converted to RGBA8888");
     let mut png_file = File::create("target/blood.png").unwrap();
 

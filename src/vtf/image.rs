@@ -94,57 +94,28 @@ pub trait ColorType where Self: Sized {
     fn from_rgb888(rgb: Rgb888) -> Self;
 }
 
-
 #[derive(Debug, Clone)]
-pub enum ImageFormatWrapper {
-    DXT1(Dxt1),
-    DXT3(Dxt3),
-    DXT5(Dxt5),
-    RGB888(Vec<Rgb888>),
-    RGBA8888(Vec<Rgba8888>)
+pub enum VTFImageWrapper {
+    DXT1 (Dxt1),
+    DXT3 (Dxt3),
+    DXT5 (Dxt5)
 }
 
-impl ImageFormatWrapper {
-    pub fn load<R>(source: &mut R, width: u16, height: u16, format: ImageFormat) -> Result<ImageFormatWrapper, io::Error> where R: Read {
+impl VTFImageWrapper {
+    pub fn load<R>(source: &mut R, width: u16, height: u16, format: ImageFormat) -> Result<VTFImageWrapper, io::Error> where R: Read {
         match format {
-            ImageFormat::DXT1 => Ok(ImageFormatWrapper::DXT1(try!(Dxt1::load(&mut *source, width, height)))),
-            ImageFormat::DXT5 => Ok(ImageFormatWrapper::DXT5(try!(Dxt5::load(&mut *source, width, height)))),
+            ImageFormat::DXT1 => Ok(VTFImageWrapper::DXT1(try!(Dxt1::load(&mut *source, width, height)))),
+            ImageFormat::DXT3 => Ok(VTFImageWrapper::DXT3(try!(Dxt3::load(&mut *source, width, height)))),
+            ImageFormat::DXT5 => Ok(VTFImageWrapper::DXT5(try!(Dxt5::load(&mut *source, width, height)))),
             _ => panic!("Unsupported image format given!")
         }
     }
 
-    pub fn to_rgb888(&self) -> Option<Vec<Rgb888>> {
+    pub fn expose(&self) -> &VTFImage {
         match self {
-            &ImageFormatWrapper::DXT1(ref im) => Some(im.to_rgb888()),
-            &ImageFormatWrapper::DXT3(_) => None,
-            &ImageFormatWrapper::DXT5(_) => None,
-            &ImageFormatWrapper::RGB888(ref im) => Some(im.clone()),
-            &ImageFormatWrapper::RGBA8888(_) => None
-        }
-    }
-
-    pub fn to_rgb888_raw(&self) -> Option<Vec<u8>> {
-        match self {
-            &ImageFormatWrapper::DXT1(ref im) => Some(im.to_rgb888_raw()),
-            _ => None //TODO: remove _ =>
-        }
-    }
-
-    pub fn to_rgba8888(&self) -> Option<Vec<Rgba8888>> {
-        match self {
-            &ImageFormatWrapper::DXT1(_) => None,
-            &ImageFormatWrapper::DXT3(ref im) => Some(im.to_rgba8888()),
-            &ImageFormatWrapper::DXT5(ref im) => Some(im.to_rgba8888()),
-            &ImageFormatWrapper::RGB888(_) => None,
-            &ImageFormatWrapper::RGBA8888(ref im) => Some(im.clone())
-        }
-    }
-
-    pub fn to_rgba8888_raw(&self) -> Option<Vec<u8>> {
-        match self {
-            &ImageFormatWrapper::DXT3(ref im) => Some(im.to_rgba8888_raw()),
-            &ImageFormatWrapper::DXT5(ref im) => Some(im.to_rgba8888_raw()),
-            _ => None //TODO: remove _ =>
+            &VTFImageWrapper::DXT1(ref im) => im,
+            &VTFImageWrapper::DXT3(ref im) => im,
+            &VTFImageWrapper::DXT5(ref im) => im,
         }
     }
 }
@@ -192,7 +163,7 @@ impl Dxt1 {
     }
 }
 
-impl Image for Dxt1 {
+impl VTFImage for Dxt1 {
     fn to_rgb888(&self) -> Vec<Rgb888> {
 
         let pix_count = self.width as usize * self.height as usize;
@@ -308,7 +279,7 @@ impl Dxt3 {
     }
 }
 
-impl Image for Dxt3{
+impl VTFImage for Dxt3 {
     fn to_rgb888(&self) -> Vec<Rgb888> {
         let rgba = self.to_rgba8888();
 
@@ -434,7 +405,7 @@ impl Dxt5 {
     }
 }
 
-impl Image for Dxt5{
+impl VTFImage for Dxt5 {
     fn to_rgb888(&self) -> Vec<Rgb888> {
         let rgba = self.to_rgba8888();
 
@@ -560,7 +531,7 @@ impl Image for Dxt5{
     }
 }
 
-pub trait Image {
+pub trait VTFImage {
     fn to_rgb888(&self) -> Vec<Rgb888>;
     fn to_rgb888_raw(&self) -> Vec<u8> {
         use std::mem;

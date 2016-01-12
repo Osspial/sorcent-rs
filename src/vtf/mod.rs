@@ -9,17 +9,17 @@ use std::io::{Seek, SeekFrom};
 use std::mem;
 
 pub use self::format::{Data, HeaderRoot, Header70, Header72, Header73, Resource, ResourceID, HeaderVersion, ImageFormat};
+use self::image::{VTFImageWrapper};
 
 use self::error::{VTFLoadError, VTFError};
-use self::image::ImageFormatWrapper;
 
 #[derive(Debug)]
 pub struct VTFFile {
     pub header: HeaderVersion,
     pub resources: Option<Vec<Resource>>,
-    pub thumb: ImageFormatWrapper,
-    pub mips: Vec<ImageFormatWrapper>,
-    pub image: ImageFormatWrapper
+    pub thumb: VTFImageWrapper,
+    pub mips: Vec<VTFImageWrapper>,
+    pub image: VTFImageWrapper
 }
 
 impl VTFFile {
@@ -44,9 +44,9 @@ impl VTFFile {
 
             
             
-            let thumb: ImageFormatWrapper;
-            let mips: Vec<ImageFormatWrapper>;
-            let image: ImageFormatWrapper;
+            let thumb: VTFImageWrapper;
+            let mips: Vec<VTFImageWrapper>;
+            let image: VTFImageWrapper;
             //Create a vector with a capacity of the header's listed resource count
             let mut resources: Vec<Resource>;
             {
@@ -78,14 +78,14 @@ impl VTFFile {
 
                 // Go to the start of the thumbnail
                 file.seek(SeekFrom::Start(resources[thumb_ri].data as u64)).unwrap();
-                thumb = try!(ImageFormatWrapper::load(&mut *file, header70.thumbnail_width as u16, header70.thumbnail_height as u16, header70.thumbnail_format).map_err(VTFLoadError::Io));
+                thumb = try!(VTFImageWrapper::load(&mut *file, header70.thumbnail_width as u16, header70.thumbnail_height as u16, header70.thumbnail_format).map_err(VTFLoadError::Io));
                 
 
                 // Go to the start of the mips. This does not have to be re-done for the image proper
                 // as that comes dirctly after the mips.
                 file.seek(SeekFrom::Start(resources[image_ri].data as u64)).unwrap();
                 mips = VTFFile::load_mips(&mut *file, header70.width, header70.height, header70.mip_count, header70.image_format);
-                image = try!(ImageFormatWrapper::load(&mut *file, header70.width, header70.height, header70.image_format).map_err(VTFLoadError::Io));
+                image = try!(VTFImageWrapper::load(&mut *file, header70.width, header70.height, header70.image_format).map_err(VTFLoadError::Io));
             }
 
             Ok(VTFFile {header: header, resources: Some(resources), thumb: thumb, mips: mips, image: image})
@@ -96,19 +96,19 @@ impl VTFFile {
                                 header_root, 
                                 try!(Header70::load(&mut *file)),
                                 try!(Header72::load(&mut *file)));
-            let thumb: ImageFormatWrapper;
-            let mips: Vec<ImageFormatWrapper>;
-            let image: ImageFormatWrapper;
+            let thumb: VTFImageWrapper;
+            let mips: Vec<VTFImageWrapper>;
+            let image: VTFImageWrapper;
             {
                 let header_root = header.get_root();
                 let header70 = header.get_h70();
 
                 // Go to the end of the header
                 file.seek(SeekFrom::Start(header_root.header_size as u64)).unwrap();
-                thumb = try!(ImageFormatWrapper::load(&mut *file, header70.thumbnail_width as u16, header70.thumbnail_height as u16, header70.thumbnail_format).map_err(VTFLoadError::Io));
+                thumb = try!(VTFImageWrapper::load(&mut *file, header70.thumbnail_width as u16, header70.thumbnail_height as u16, header70.thumbnail_format).map_err(VTFLoadError::Io));
 
                 mips = VTFFile::load_mips(&mut *file, header70.width, header70.height, header70.mip_count, header70.image_format);
-                image = try!(ImageFormatWrapper::load(&mut *file, header70.width, header70.height, header70.image_format).map_err(VTFLoadError::Io));
+                image = try!(VTFImageWrapper::load(&mut *file, header70.width, header70.height, header70.image_format).map_err(VTFLoadError::Io));
             }
             Ok(VTFFile {header: header, resources: None, thumb: thumb, mips: mips, image: image})
 
@@ -117,18 +117,18 @@ impl VTFFile {
             header = HeaderVersion::H70(
                                 header_root, 
                                 try!(Header70::load(&mut *file)));
-            let thumb: ImageFormatWrapper;
-            let mips: Vec<ImageFormatWrapper>;
-            let image: ImageFormatWrapper;
+            let thumb: VTFImageWrapper;
+            let mips: Vec<VTFImageWrapper>;
+            let image: VTFImageWrapper;
             {
                 let header_root = header.get_root();
                 let header70 = header.get_h70();
 
                 file.seek(SeekFrom::Start(header_root.header_size as u64)).unwrap();
-                thumb = try!(ImageFormatWrapper::load(&mut *file, header70.thumbnail_width as u16, header70.thumbnail_height as u16, header70.thumbnail_format).map_err(VTFLoadError::Io));
+                thumb = try!(VTFImageWrapper::load(&mut *file, header70.thumbnail_width as u16, header70.thumbnail_height as u16, header70.thumbnail_format).map_err(VTFLoadError::Io));
 
                 mips = VTFFile::load_mips(&mut *file, header70.width, header70.height, header70.mip_count, header70.image_format);
-                image = try!(ImageFormatWrapper::load(&mut *file, header70.width, header70.height, header70.image_format).map_err(VTFLoadError::Io));
+                image = try!(VTFImageWrapper::load(&mut *file, header70.width, header70.height, header70.image_format).map_err(VTFLoadError::Io));
             }
             Ok(VTFFile {header: header, resources: None, thumb: thumb, mips: mips, image: image})
 
@@ -138,8 +138,8 @@ impl VTFFile {
         }
     }
 
-    fn load_mips(file: &mut File, width: u16, height: u16, mip_count: u8, image_format: ImageFormat) -> Vec<ImageFormatWrapper> {
-        let mut mips: Vec<ImageFormatWrapper> = Vec::with_capacity((mip_count - 1) as usize);
+    fn load_mips(file: &mut File, width: u16, height: u16, mip_count: u8, image_format: ImageFormat) -> Vec<VTFImageWrapper> {
+        let mut mips: Vec<VTFImageWrapper> = Vec::with_capacity((mip_count - 1) as usize);
 
         let mut mip_level = mip_count;
 
@@ -148,7 +148,7 @@ impl VTFFile {
         while mip_level > 1 {
             mip_level -= 1;
             mip_dims = VTFFile::compute_mip_dimensions(width, height, mip_level);
-            mips.push(ImageFormatWrapper::load(&mut *file, mip_dims.0, mip_dims.1, image_format).unwrap());
+            mips.push(VTFImageWrapper::load(&mut *file, mip_dims.0, mip_dims.1, image_format).unwrap());
         }
         
         mips
