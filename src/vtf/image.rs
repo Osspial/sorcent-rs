@@ -190,8 +190,10 @@ impl Dxt1 {
 
         Ok(Dxt1 {data: data, width: width, height: height})
     }
+}
 
-    pub fn to_rgb888(&self) -> Vec<Rgb888> {
+impl Image for Dxt1 {
+    fn to_rgb888(&self) -> Vec<Rgb888> {
 
         let pix_count = self.width as usize * self.height as usize;
         let mut rgb: Vec<Rgb888> = Vec::with_capacity(pix_count);
@@ -240,17 +242,23 @@ impl Dxt1 {
         rgb
     }
 
-    pub fn to_rgb888_raw(&self) -> Vec<u8> {
-        use std::mem;
+    fn to_rgba8888(&self) -> Vec<Rgba8888> {
+        let rgb = self.to_rgb888();
 
-        let mut rgb = self.to_rgb888();
-        unsafe{
-            let ptr = rgb.as_mut_ptr();
-            let len = rgb.len() * 3;
-            let cap = rgb.capacity() * 3;
-
-            Vec::from_raw_parts(mem::transmute(ptr), len, cap)
+        let mut rgba: Vec<Rgba8888> = Vec::with_capacity(rgb.len());
+        for c in &rgb {
+            rgba.push(Rgba8888{red: c.red, green: c.green, blue: c.blue, alpha: 255});
         }
+
+        rgba
+    }
+
+    fn get_width(&self) -> u16 {
+        self.width
+    }
+
+    fn get_height(&self) -> u16 {
+        self.height
     }
 }
 
@@ -298,8 +306,21 @@ impl Dxt3 {
 
         Ok(Dxt3 {data: data, width: width, height: height})
     }
+}
 
-    pub fn to_rgba8888(&self) -> Vec<Rgba8888> {
+impl Image for Dxt3{
+    fn to_rgb888(&self) -> Vec<Rgb888> {
+        let rgba = self.to_rgba8888();
+
+        let mut rgb: Vec<Rgb888> = Vec::with_capacity(rgba.len());
+        for c in &rgba {
+            rgb.push(Rgb888{red: c.red, green: c.green, blue: c.blue});
+        }
+
+        rgb
+    }
+
+    fn to_rgba8888(&self) -> Vec<Rgba8888> {
 
         let pix_count = self.width as usize * self.height as usize;
         let mut rgba: Vec<Rgba8888> = Vec::with_capacity(pix_count);
@@ -358,20 +379,12 @@ impl Dxt3 {
         rgba
     }
 
-    //TODO: Replace with trait
-    pub fn to_rgba8888_raw(&self) -> Vec<u8> {
-        use std::mem;
+    fn get_width(&self) -> u16 {
+        self.width
+    }
 
-        let mut rgba = self.to_rgba8888();
-        unsafe{
-            let ptr = rgba.as_mut_ptr();
-            let len = rgba.len() * 4;
-            let cap = rgba.capacity() * 4;
-
-            mem::forget(rgba);
-
-            Vec::from_raw_parts(mem::transmute(ptr), len, cap)
-        }
+    fn get_height(&self) -> u16 {
+        self.height
     }
 }
 
@@ -419,8 +432,21 @@ impl Dxt5 {
 
         Ok(Dxt5 {data: data, width: width, height: height})
     }
+}
 
-    pub fn to_rgba8888(&self) -> Vec<Rgba8888> {
+impl Image for Dxt5{
+    fn to_rgb888(&self) -> Vec<Rgb888> {
+        let rgba = self.to_rgba8888();
+
+        let mut rgb: Vec<Rgb888> = Vec::with_capacity(rgba.len());
+        for c in &rgba {
+            rgb.push(Rgb888{red: c.red, green: c.green, blue: c.blue});
+        }
+
+        rgb
+    }
+
+    fn to_rgba8888(&self) -> Vec<Rgba8888> {
 
         let pix_count = self.width as usize * self.height as usize;
         let mut rgba: Vec<Rgba8888> = Vec::with_capacity(pix_count);
@@ -461,7 +487,7 @@ impl Dxt5 {
                     interp_alpha_8bit(a0, a1, 2),
                     interp_alpha_8bit(a0, a1, 3),
                     interp_alpha_8bit(a0, a1, 4),
-                    interp_alpha_8bit(a0, a1, 5),
+                    interp_alpha_8bit(a0, a1, 5)
                 ];
 
             } else {  
@@ -475,8 +501,8 @@ impl Dxt5 {
                     interp_alpha_6bit(a0, a1, 1),
                     interp_alpha_6bit(a0, a1, 2),
                     interp_alpha_6bit(a0, a1, 3),
-                    0x00,                        
-                    0xFF,                         
+                    0x00,
+                    0xFF
                 ];
             }
 
@@ -525,7 +551,32 @@ impl Dxt5 {
         rgba
     }
 
-    pub fn to_rgba8888_raw(&self) -> Vec<u8> {
+    fn get_width(&self) -> u16 {
+        self.width
+    }
+
+    fn get_height(&self) -> u16 {
+        self.height
+    }
+}
+
+pub trait Image {
+    fn to_rgb888(&self) -> Vec<Rgb888>;
+    fn to_rgb888_raw(&self) -> Vec<u8> {
+        use std::mem;
+
+        let mut rgb = self.to_rgb888();
+        unsafe{
+            let ptr = rgb.as_mut_ptr();
+            let len = rgb.len() * 3;
+            let cap = rgb.capacity() * 3;
+
+            Vec::from_raw_parts(mem::transmute(ptr), len, cap)
+        }
+    }
+
+    fn to_rgba8888(&self) -> Vec<Rgba8888>;
+    fn to_rgba8888_raw(&self) -> Vec<u8> {
         use std::mem;
 
         let mut rgba = self.to_rgba8888();
@@ -534,11 +585,12 @@ impl Dxt5 {
             let len = rgba.len() * 4;
             let cap = rgba.capacity() * 4;
 
-            mem::forget(rgba);
-
             Vec::from_raw_parts(mem::transmute(ptr), len, cap)
         }
     }
+
+    fn get_width(&self) -> u16;
+    fn get_height(&self) -> u16;
 }
 
 /// Interpolates between colors c0 and c1. When factor is false,
