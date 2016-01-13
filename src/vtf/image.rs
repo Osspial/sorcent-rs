@@ -64,6 +64,24 @@ pub struct Bgr888 {
     pub red: u8
 }
 
+impl ColorType for Bgr888 {
+    fn to_rgb888(&self) -> Rgb888 {
+        Rgb888 {
+            red: self.red,
+            green: self.green,
+            blue: self.blue
+        }
+    }
+
+    fn from_rgb888(rgb: Rgb888) -> Bgr888 {
+        Bgr888 {
+            blue: rgb.blue,
+            green: rgb.green,
+            red: rgb.red
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Rgb161616 {
     pub red: u16,
@@ -98,7 +116,8 @@ pub trait ColorType where Self: Sized {
 pub enum VTFImageWrapper {
     DXT1 (Dxt1),
     DXT3 (Dxt3),
-    DXT5 (Dxt5)
+    DXT5 (Dxt5),
+    BGR888 (Bgr888Image)
 }
 
 impl VTFImageWrapper {
@@ -107,6 +126,7 @@ impl VTFImageWrapper {
             ImageFormat::DXT1 => Ok(VTFImageWrapper::DXT1(try!(Dxt1::load(&mut *source, width, height)))),
             ImageFormat::DXT3 => Ok(VTFImageWrapper::DXT3(try!(Dxt3::load(&mut *source, width, height)))),
             ImageFormat::DXT5 => Ok(VTFImageWrapper::DXT5(try!(Dxt5::load(&mut *source, width, height)))),
+            ImageFormat::BGR888 => Ok(VTFImageWrapper::BGR888(try!(Bgr888Image::load(&mut *source, width, height)))),
             _ => panic!("Unsupported image format given!")
         }
     }
@@ -116,6 +136,7 @@ impl VTFImageWrapper {
             &VTFImageWrapper::DXT1(ref im) => im,
             &VTFImageWrapper::DXT3(ref im) => im,
             &VTFImageWrapper::DXT5(ref im) => im,
+            &VTFImageWrapper::BGR888(ref im) => im
         }
     }
 }
@@ -531,9 +552,82 @@ impl VTFImage for Dxt5 {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Bgr888Image {
+    data: Vec<Bgr888>,
+    width: u16,
+    height: u16
+}
+
+impl Bgr888Image {
+    pub fn load<R>(source: &mut R, width: u16, height: u16) -> Result<Bgr888Image, io::Error> where R: Read {
+        use std::mem::transmute;
+
+        let pix_count = width as usize * height as usize;
+
+        let mut data: Vec<Bgr888> = Vec::with_capacity(pix_count);
+
+
+        let mut data_buffer: [u8; 3] = [0; 3];
+        let mut index = 0;
+        while index < pix_count {
+            try!(source.read(&mut data_buffer));
+            data.push(unsafe{ transmute(data_buffer) });
+            index += 1;
+        }
+
+        Ok(Bgr888Image{data: data, width: width, height: height})
+    }
+}
+
+impl VTFImage for Bgr888Image {
+    fn to_rgb888(&self) -> Vec<Rgb888> {
+        let pix_count = self.width as usize * self.height as usize;
+
+        let mut rgb: Vec<Rgb888> = Vec::with_capacity(pix_count);
+
+        for p in &self.data {
+            rgb.push(p.to_rgb888());
+        }
+
+        rgb
+    }
+
+    fn to_rgba8888(&self) -> Vec<Rgba8888> {
+        let pix_count = self.width as usize * self.height as usize;
+
+        let mut rgba: Vec<Rgba8888> = Vec::with_capacity(pix_count);
+
+        for p in &self.data {
+            rgba.push(Rgba8888{red: p.red, green: p.green, blue: p.blue, alpha: 255});
+        }
+
+        rgba
+    }
+
+    fn get_width(&self) -> u16 {
+        self.width
+    }
+
+    fn get_height(&self) -> u16 {
+        self.height
+    }
+}
+
 pub trait VTFImage {
     fn to_rgb888(&self) -> Vec<Rgb888>;
     fn to_rgb888_raw(&self) -> Vec<u8> {
+        let rgb = self.to_rgb888();
+
+        let mut rgb_raw = Vec::with_capacity(rgb.len() * 3);
+        for p in &rgb {
+            rgb_raw.push(p.red);
+            rgb_raw.push(p.green);
+            rgb_raw.push(p.blue);
+        }
+        rgb_raw
+
+        /*
         use std::mem;
 
         let mut rgb = self.to_rgb888();
@@ -544,10 +638,23 @@ pub trait VTFImage {
 
             Vec::from_raw_parts(mem::transmute(ptr), len, cap)
         }
+        */
     }
 
     fn to_rgba8888(&self) -> Vec<Rgba8888>;
     fn to_rgba8888_raw(&self) -> Vec<u8> {
+        let rgba = self.to_rgba8888();
+
+        let mut rgba_raw = Vec::with_capacity(rgba.len() * 4);
+        for p in &rgba {
+            rgba_raw.push(p.red);
+            rgba_raw.push(p.green);
+            rgba_raw.push(p.blue);
+            rgba_raw.push(p.alpha);
+        }
+        rgba_raw
+
+        /*
         use std::mem;
 
         let mut rgba = self.to_rgba8888();
@@ -558,6 +665,7 @@ pub trait VTFImage {
 
             Vec::from_raw_parts(mem::transmute(ptr), len, cap)
         }
+        */
     }
 
     fn get_width(&self) -> u16;
