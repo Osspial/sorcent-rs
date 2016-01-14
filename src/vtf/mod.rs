@@ -140,6 +140,7 @@ impl VTFFile {
 
     fn load_mips(file: &mut File, width: u16, height: u16, mip_count: u8, image_format: ImageFormat) -> Vec<VTFImageWrapper> {
         let mut mips: Vec<VTFImageWrapper> = Vec::with_capacity((mip_count - 1) as usize);
+        unsafe{ mips.set_len(mip_count as usize - 1) };
 
         let mut mip_level = mip_count;
 
@@ -148,7 +149,7 @@ impl VTFFile {
         while mip_level > 1 {
             mip_level -= 1;
             mip_dims = VTFFile::compute_mip_dimensions(width, height, mip_level);
-            mips.push(VTFImageWrapper::load(&mut *file, mip_dims.0, mip_dims.1, image_format).unwrap());
+            mips[mip_level as usize - 1] = VTFImageWrapper::load(&mut *file, mip_dims.0, mip_dims.1, image_format).unwrap();
         }
         
         mips
