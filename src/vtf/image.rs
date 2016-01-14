@@ -46,6 +46,21 @@ impl ColorType for Rgb565 {
             blue: (rgb.blue as f32 * CONV85) as u8,
         }
     }
+
+    fn to_rgba8888(&self) -> Rgba8888 {
+        let rgb = self.to_rgb888();
+
+        Rgba8888 {
+            red: rgb.red,
+            green: rgb.green,
+            blue: rgb.blue,
+            alpha: 255
+        }
+    }
+
+    fn from_rgba8888(rgba: Rgba8888) -> Rgb565 {
+        Rgb565::from_rgb888(Rgb888{red: rgba.red, green: rgba.green, blue: rgba.blue})
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -80,6 +95,23 @@ impl ColorType for Bgr888 {
             red: rgb.red
         }
     }
+
+    fn to_rgba8888(&self) -> Rgba8888 {
+        Rgba8888 {
+            red: self.red,
+            green: self.green,
+            blue: self.blue,
+            alpha: 255
+        }
+    }
+
+    fn from_rgba8888(rgba: Rgba8888) -> Bgr888 {
+        Bgr888 {
+            blue: rgba.blue,
+            green: rgba.green,
+            red: rgba.red
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -107,9 +139,49 @@ pub struct Bgra8888 {
     pub alpha: u8
 }
 
+impl ColorType for Bgra8888 {
+    fn to_rgb888(&self) -> Rgb888 {
+        Rgb888 {
+            red: self.red,
+            green: self.green,
+            blue: self.blue
+        }
+    }
+
+    fn from_rgb888(rgb: Rgb888) -> Bgra8888 {
+        Bgra8888 {
+            blue: rgb.blue,
+            green: rgb.green,
+            red: rgb.red,
+            alpha: 255
+        }
+    }
+
+    fn to_rgba8888(&self) -> Rgba8888 {
+        Rgba8888 {
+            red: self.red,
+            green: self.green,
+            blue: self.blue,
+            alpha: self.alpha
+        }
+    }
+
+    fn from_rgba8888(rgba: Rgba8888) -> Bgra8888 {
+        Bgra8888 {
+            blue: rgba.blue,
+            green: rgba.green,
+            red: rgba.red,
+            alpha: rgba.alpha
+        }
+    }
+}
+
 pub trait ColorType where Self: Sized {
     fn to_rgb888(&self) -> Rgb888;
     fn from_rgb888(rgb: Rgb888) -> Self;
+
+    fn to_rgba8888(&self) -> Rgba8888;
+    fn from_rgba8888(rgba: Rgba8888) -> Self;
 }
 
 #[derive(Debug, Clone)]
@@ -599,7 +671,7 @@ impl VTFImage for Bgr888Image {
         let mut rgba: Vec<Rgba8888> = Vec::with_capacity(pix_count);
 
         for p in &self.data {
-            rgba.push(Rgba8888{red: p.red, green: p.green, blue: p.blue, alpha: 255});
+            rgba.push(p.to_rgba8888());
         }
 
         rgba
