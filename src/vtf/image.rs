@@ -21,20 +21,20 @@ impl Rgb565 {
 }
 
 impl ColorType for Rgb565 {
-    fn to_rgb888(&self) -> Rgb888 {
+    fn to_rgb8(&self) -> Rgb8 {
         // Conversion factor for 5-bit to 8-bit
         const CONV58: f32 = 255.0/31.0;
         // Conversion factor for 6-bit to 8-bit
         const CONV68: f32 = 255.0/63.0;
 
-        Rgb888 {
+        Rgb8 {
             red: (self.red as f32 * CONV58) as u8,
             green: (self.green as f32 * CONV68) as u8,
             blue: (self.blue as f32 * CONV58) as u8,
         }
     }
 
-    fn from_rgb888(rgb: Rgb888) -> Rgb565 {
+    fn from_rgb888(rgb: Rgb8) -> Rgb565 {
         // Conversion factor from 8-bit to 5-bit
         const CONV85: f32 = 31.0/255.0;
         // Conversion factor from 8-bit to 6-bit
@@ -47,10 +47,10 @@ impl ColorType for Rgb565 {
         }
     }
 
-    fn to_rgba8888(&self) -> Rgba8888 {
-        let rgb = self.to_rgb888();
+    fn to_rgba8(&self) -> Rgba8 {
+        let rgb = self.to_rgb8();
 
-        Rgba8888 {
+        Rgba8 {
             red: rgb.red,
             green: rgb.green,
             blue: rgb.blue,
@@ -58,14 +58,14 @@ impl ColorType for Rgb565 {
         }
     }
 
-    fn from_rgba8888(rgba: Rgba8888) -> Rgb565 {
-        Rgb565::from_rgb888(Rgb888{red: rgba.red, green: rgba.green, blue: rgba.blue})
+    fn from_rgba8888(rgba: Rgba8) -> Rgb565 {
+        Rgb565::from_rgb888(Rgb8{red: rgba.red, green: rgba.green, blue: rgba.blue})
     }
 }
 
 #[derive(Debug, Clone)]
 #[repr(C)]
-pub struct Rgb888 {
+pub struct Rgb8 {
     pub red: u8,
     pub green: u8,
     pub blue: u8
@@ -73,31 +73,31 @@ pub struct Rgb888 {
 
 #[derive(Debug, Clone)]
 #[repr(C)]
-pub struct Bgr888 {
+pub struct Bgr8 {
     pub blue: u8,
     pub green: u8,
     pub red: u8
 }
 
-impl ColorType for Bgr888 {
-    fn to_rgb888(&self) -> Rgb888 {
-        Rgb888 {
+impl ColorType for Bgr8 {
+    fn to_rgb8(&self) -> Rgb8 {
+        Rgb8 {
             red: self.red,
             green: self.green,
             blue: self.blue
         }
     }
 
-    fn from_rgb888(rgb: Rgb888) -> Bgr888 {
-        Bgr888 {
+    fn from_rgb888(rgb: Rgb8) -> Bgr8 {
+        Bgr8 {
             blue: rgb.blue,
             green: rgb.green,
             red: rgb.red
         }
     }
 
-    fn to_rgba8888(&self) -> Rgba8888 {
-        Rgba8888 {
+    fn to_rgba8(&self) -> Rgba8 {
+        Rgba8 {
             red: self.red,
             green: self.green,
             blue: self.blue,
@@ -105,8 +105,8 @@ impl ColorType for Bgr888 {
         }
     }
 
-    fn from_rgba8888(rgba: Rgba8888) -> Bgr888 {
-        Bgr888 {
+    fn from_rgba8888(rgba: Rgba8) -> Bgr8 {
+        Bgr8 {
             blue: rgba.blue,
             green: rgba.green,
             red: rgba.red
@@ -115,7 +115,7 @@ impl ColorType for Bgr888 {
 }
 
 #[derive(Debug, Clone)]
-pub struct Rgb161616 {
+pub struct Rgb16 {
     pub red: u16,
     pub green: u16,
     pub blue: u16
@@ -123,7 +123,7 @@ pub struct Rgb161616 {
 
 #[derive(Debug, Clone)]
 #[repr(C)]
-pub struct Rgba8888 {
+pub struct Rgba8 {
     pub red: u8,
     pub green: u8,
     pub blue: u8,
@@ -132,24 +132,24 @@ pub struct Rgba8888 {
 
 #[derive(Debug, Clone)]
 #[repr(C)]
-pub struct Bgra8888 {
+pub struct Bgra8 {
     pub blue: u8,
     pub green: u8,
     pub red: u8,
     pub alpha: u8
 }
 
-impl ColorType for Bgra8888 {
-    fn to_rgb888(&self) -> Rgb888 {
-        Rgb888 {
+impl ColorType for Bgra8 {
+    fn to_rgb8(&self) -> Rgb8 {
+        Rgb8 {
             red: self.red,
             green: self.green,
             blue: self.blue
         }
     }
 
-    fn from_rgb888(rgb: Rgb888) -> Bgra8888 {
-        Bgra8888 {
+    fn from_rgb888(rgb: Rgb8) -> Bgra8 {
+        Bgra8 {
             blue: rgb.blue,
             green: rgb.green,
             red: rgb.red,
@@ -157,8 +157,8 @@ impl ColorType for Bgra8888 {
         }
     }
 
-    fn to_rgba8888(&self) -> Rgba8888 {
-        Rgba8888 {
+    fn to_rgba8(&self) -> Rgba8 {
+        Rgba8 {
             red: self.red,
             green: self.green,
             blue: self.blue,
@@ -166,8 +166,8 @@ impl ColorType for Bgra8888 {
         }
     }
 
-    fn from_rgba8888(rgba: Rgba8888) -> Bgra8888 {
-        Bgra8888 {
+    fn from_rgba8888(rgba: Rgba8) -> Bgra8 {
+        Bgra8 {
             blue: rgba.blue,
             green: rgba.green,
             red: rgba.red,
@@ -177,11 +177,11 @@ impl ColorType for Bgra8888 {
 }
 
 pub trait ColorType where Self: Sized {
-    fn to_rgb888(&self) -> Rgb888;
-    fn from_rgb888(rgb: Rgb888) -> Self;
+    fn to_rgb8(&self) -> Rgb8;
+    fn from_rgb888(rgb: Rgb8) -> Self;
 
-    fn to_rgba8888(&self) -> Rgba8888;
-    fn from_rgba8888(rgba: Rgba8888) -> Self;
+    fn to_rgba8(&self) -> Rgba8;
+    fn from_rgba8888(rgba: Rgba8) -> Self;
 }
 
 #[derive(Debug, Clone)]
@@ -189,7 +189,8 @@ pub enum VTFImageWrapper {
     DXT1 (Dxt1),
     DXT3 (Dxt3),
     DXT5 (Dxt5),
-    BGR888 (Bgr888Image)
+    BGR888 (Bgr8Image),
+    BGRA8888 (Bgra8Image)
 }
 
 impl VTFImageWrapper {
@@ -198,7 +199,8 @@ impl VTFImageWrapper {
             ImageFormat::DXT1 => Ok(VTFImageWrapper::DXT1(try!(Dxt1::load(&mut *source, width, height)))),
             ImageFormat::DXT3 => Ok(VTFImageWrapper::DXT3(try!(Dxt3::load(&mut *source, width, height)))),
             ImageFormat::DXT5 => Ok(VTFImageWrapper::DXT5(try!(Dxt5::load(&mut *source, width, height)))),
-            ImageFormat::BGR888 => Ok(VTFImageWrapper::BGR888(try!(Bgr888Image::load(&mut *source, width, height)))),
+            ImageFormat::BGR888 => Ok(VTFImageWrapper::BGR888(try!(Bgr8Image::load(&mut *source, width, height)))),
+            ImageFormat::BGRA8888 => Ok(VTFImageWrapper::BGRA8888(try!(Bgra8Image::load(&mut *source, width, height)))),
             _ => panic!("Unsupported image format given!")
         }
     }
@@ -208,7 +210,8 @@ impl VTFImageWrapper {
             &VTFImageWrapper::DXT1(ref im) => im,
             &VTFImageWrapper::DXT3(ref im) => im,
             &VTFImageWrapper::DXT5(ref im) => im,
-            &VTFImageWrapper::BGR888(ref im) => im
+            &VTFImageWrapper::BGR888(ref im) => im,
+            &VTFImageWrapper::BGRA8888(ref im) => im
         }
     }
 }
@@ -257,16 +260,16 @@ impl Dxt1 {
 }
 
 impl VTFImage for Dxt1 {
-    fn to_rgb888(&self) -> Vec<Rgb888> {
+    fn to_rgb8(&self) -> Vec<Rgb8> {
 
         let pix_count = self.width as usize * self.height as usize;
-        let mut rgb: Vec<Rgb888> = Vec::with_capacity(pix_count);
+        let mut rgb: Vec<Rgb8> = Vec::with_capacity(pix_count);
         unsafe{ rgb.set_len(pix_count) };
 
         let mut chunk_offset = 0;
         for c in &self.data {
-            let c0 = Rgb565::load(c.0).to_rgb888();
-            let c1 = Rgb565::load(c.1).to_rgb888();
+            let c0 = Rgb565::load(c.0).to_rgb8();
+            let c1 = Rgb565::load(c.1).to_rgb8();
             let c2 = interp_color(&c0, &c1, true);
             let c3 = interp_color(&c0, &c1, false); 
 
@@ -306,12 +309,12 @@ impl VTFImage for Dxt1 {
         rgb
     }
 
-    fn to_rgba8888(&self) -> Vec<Rgba8888> {
-        let rgb = self.to_rgb888();
+    fn to_rgba8(&self) -> Vec<Rgba8> {
+        let rgb = self.to_rgb8();
 
-        let mut rgba: Vec<Rgba8888> = Vec::with_capacity(rgb.len());
+        let mut rgba: Vec<Rgba8> = Vec::with_capacity(rgb.len());
         for c in &rgb {
-            rgba.push(Rgba8888{red: c.red, green: c.green, blue: c.blue, alpha: 255});
+            rgba.push(Rgba8{red: c.red, green: c.green, blue: c.blue, alpha: 255});
         }
 
         rgba
@@ -373,28 +376,28 @@ impl Dxt3 {
 }
 
 impl VTFImage for Dxt3 {
-    fn to_rgb888(&self) -> Vec<Rgb888> {
-        let rgba = self.to_rgba8888();
+    fn to_rgb8(&self) -> Vec<Rgb8> {
+        let rgba = self.to_rgba8();
 
-        let mut rgb: Vec<Rgb888> = Vec::with_capacity(rgba.len());
+        let mut rgb: Vec<Rgb8> = Vec::with_capacity(rgba.len());
         for c in &rgba {
-            rgb.push(Rgb888{red: c.red, green: c.green, blue: c.blue});
+            rgb.push(Rgb8{red: c.red, green: c.green, blue: c.blue});
         }
 
         rgb
     }
 
-    fn to_rgba8888(&self) -> Vec<Rgba8888> {
+    fn to_rgba8(&self) -> Vec<Rgba8> {
 
         let pix_count = self.width as usize * self.height as usize;
-        let mut rgba: Vec<Rgba8888> = Vec::with_capacity(pix_count);
+        let mut rgba: Vec<Rgba8> = Vec::with_capacity(pix_count);
         unsafe{ rgba.set_len(pix_count) };
 
         let mut chunk_offset = 0;
         for c in &self.data {
             // Compute color data
-            let c0 = Rgb565::load(c.1).to_rgb888();
-            let c1 = Rgb565::load(c.2).to_rgb888();
+            let c0 = Rgb565::load(c.1).to_rgb8();
+            let c1 = Rgb565::load(c.2).to_rgb8();
             let c2 = interp_color(&c0, &c1, true);
             let c3 = interp_color(&c0, &c1, false); 
 
@@ -417,10 +420,10 @@ impl VTFImage for Dxt3 {
             while i < 16 {
                 let rgba_offset = chunk_offset + index + (self.width*cline) as usize;
                 match color_data[i] {
-                    0 => rgba[rgba_offset] = Rgba8888{red: c0.red, green: c0.green, blue: c0.blue, alpha: alpha_data[i] * 17},
-                    1 => rgba[rgba_offset] = Rgba8888{red: c1.red, green: c1.green, blue: c1.blue, alpha: alpha_data[i] * 17},
-                    2 => rgba[rgba_offset] = Rgba8888{red: c2.red, green: c2.green, blue: c2.blue, alpha: alpha_data[i] * 17},
-                    3 => rgba[rgba_offset] = Rgba8888{red: c3.red, green: c3.green, blue: c3.blue, alpha: alpha_data[i] * 17},
+                    0 => rgba[rgba_offset] = Rgba8{red: c0.red, green: c0.green, blue: c0.blue, alpha: alpha_data[i] * 17},
+                    1 => rgba[rgba_offset] = Rgba8{red: c1.red, green: c1.green, blue: c1.blue, alpha: alpha_data[i] * 17},
+                    2 => rgba[rgba_offset] = Rgba8{red: c2.red, green: c2.green, blue: c2.blue, alpha: alpha_data[i] * 17},
+                    3 => rgba[rgba_offset] = Rgba8{red: c3.red, green: c3.green, blue: c3.blue, alpha: alpha_data[i] * 17},
                     _ => unreachable!()
                 }
                 
@@ -499,28 +502,28 @@ impl Dxt5 {
 }
 
 impl VTFImage for Dxt5 {
-    fn to_rgb888(&self) -> Vec<Rgb888> {
-        let rgba = self.to_rgba8888();
+    fn to_rgb8(&self) -> Vec<Rgb8> {
+        let rgba = self.to_rgba8();
 
-        let mut rgb: Vec<Rgb888> = Vec::with_capacity(rgba.len());
+        let mut rgb: Vec<Rgb8> = Vec::with_capacity(rgba.len());
         for c in &rgba {
-            rgb.push(Rgb888{red: c.red, green: c.green, blue: c.blue});
+            rgb.push(Rgb8{red: c.red, green: c.green, blue: c.blue});
         }
 
         rgb
     }
 
-    fn to_rgba8888(&self) -> Vec<Rgba8888> {
+    fn to_rgba8(&self) -> Vec<Rgba8> {
 
         let pix_count = self.width as usize * self.height as usize;
-        let mut rgba: Vec<Rgba8888> = Vec::with_capacity(pix_count);
+        let mut rgba: Vec<Rgba8> = Vec::with_capacity(pix_count);
         unsafe{ rgba.set_len(pix_count) };
 
         let mut chunk_offset = 0;
         for c in &self.data {
             // Compute color data
-            let c0 = Rgb565::load(c.3).to_rgb888();
-            let c1 = Rgb565::load(c.4).to_rgb888();
+            let c0 = Rgb565::load(c.3).to_rgb8();
+            let c1 = Rgb565::load(c.4).to_rgb8();
             let c2 = interp_color(&c0, &c1, true);
             let c3 = interp_color(&c0, &c1, false); 
 
@@ -589,10 +592,10 @@ impl VTFImage for Dxt5 {
             while i < 16 {
                 let rgba_offset = chunk_offset + index + (self.width*cline) as usize;
                 match color_data[i] {
-                    0 => rgba[rgba_offset] = Rgba8888{red: c0.red, green: c0.green, blue: c0.blue, alpha: alookup[alpha_data[i] as usize]},
-                    1 => rgba[rgba_offset] = Rgba8888{red: c1.red, green: c1.green, blue: c1.blue, alpha: alookup[alpha_data[i] as usize]},
-                    2 => rgba[rgba_offset] = Rgba8888{red: c2.red, green: c2.green, blue: c2.blue, alpha: alookup[alpha_data[i] as usize]},
-                    3 => rgba[rgba_offset] = Rgba8888{red: c3.red, green: c3.green, blue: c3.blue, alpha: alookup[alpha_data[i] as usize]},
+                    0 => rgba[rgba_offset] = Rgba8{red: c0.red, green: c0.green, blue: c0.blue, alpha: alookup[alpha_data[i] as usize]},
+                    1 => rgba[rgba_offset] = Rgba8{red: c1.red, green: c1.green, blue: c1.blue, alpha: alookup[alpha_data[i] as usize]},
+                    2 => rgba[rgba_offset] = Rgba8{red: c2.red, green: c2.green, blue: c2.blue, alpha: alookup[alpha_data[i] as usize]},
+                    3 => rgba[rgba_offset] = Rgba8{red: c3.red, green: c3.green, blue: c3.blue, alpha: alookup[alpha_data[i] as usize]},
                     _ => unreachable!()
                 }
                 
@@ -625,19 +628,19 @@ impl VTFImage for Dxt5 {
 }
 
 #[derive(Debug, Clone)]
-pub struct Bgr888Image {
-    data: Vec<Bgr888>,
+pub struct Bgr8Image {
+    data: Vec<Bgr8>,
     width: u16,
     height: u16
 }
 
-impl Bgr888Image {
-    pub fn load<R>(source: &mut R, width: u16, height: u16) -> Result<Bgr888Image, io::Error> where R: Read {
+impl Bgr8Image {
+    pub fn load<R>(source: &mut R, width: u16, height: u16) -> Result<Bgr8Image, io::Error> where R: Read {
         use std::mem::transmute;
 
         let pix_count = width as usize * height as usize;
 
-        let mut data: Vec<Bgr888> = Vec::with_capacity(pix_count);
+        let mut data: Vec<Bgr8> = Vec::with_capacity(pix_count);
 
 
         let mut data_buffer: [u8; 3] = [0; 3];
@@ -648,30 +651,30 @@ impl Bgr888Image {
             index += 1;
         }
 
-        Ok(Bgr888Image{data: data, width: width, height: height})
+        Ok(Bgr8Image{data: data, width: width, height: height})
     }
 }
 
-impl VTFImage for Bgr888Image {
-    fn to_rgb888(&self) -> Vec<Rgb888> {
+impl VTFImage for Bgr8Image {
+    fn to_rgb8(&self) -> Vec<Rgb8> {
         let pix_count = self.width as usize * self.height as usize;
 
-        let mut rgb: Vec<Rgb888> = Vec::with_capacity(pix_count);
+        let mut rgb: Vec<Rgb8> = Vec::with_capacity(pix_count);
 
         for p in &self.data {
-            rgb.push(p.to_rgb888());
+            rgb.push(p.to_rgb8());
         }
 
         rgb
     }
 
-    fn to_rgba8888(&self) -> Vec<Rgba8888> {
+    fn to_rgba8(&self) -> Vec<Rgba8> {
         let pix_count = self.width as usize * self.height as usize;
 
-        let mut rgba: Vec<Rgba8888> = Vec::with_capacity(pix_count);
+        let mut rgba: Vec<Rgba8> = Vec::with_capacity(pix_count);
 
         for p in &self.data {
-            rgba.push(p.to_rgba8888());
+            rgba.push(p.to_rgba8());
         }
 
         rgba
@@ -686,10 +689,74 @@ impl VTFImage for Bgr888Image {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Bgra8Image {
+    data: Vec<Bgra8>,
+    width: u16,
+    height: u16
+}
+
+impl Bgra8Image {
+    pub fn load<R>(source: &mut R, width: u16, height: u16) -> Result<Bgra8Image, io::Error> where R: Read {
+        use std::mem::transmute;
+
+        let pix_count = width as usize * height as usize;
+
+        let mut data: Vec<Bgra8> = Vec::with_capacity(pix_count);
+
+
+        let mut data_buffer: [u8; 4] = [0; 4];
+        let mut index = 0;
+        while index < pix_count {
+            try!(source.read(&mut data_buffer));
+            data.push(unsafe{ transmute(data_buffer) });
+            index += 1;
+        }
+
+        Ok(Bgra8Image{data: data, width: width, height: height})
+    }
+}
+
+impl VTFImage for Bgra8Image {
+    fn to_rgb8(&self) -> Vec<Rgb8> {
+        let pix_count = self.width as usize * self.height as usize;
+
+        let mut rgb: Vec<Rgb8> = Vec::with_capacity(pix_count);
+
+        for p in &self.data {
+            rgb.push(p.to_rgb8());
+        }
+
+        rgb
+    }
+
+    fn to_rgba8(&self) -> Vec<Rgba8> {
+        let pix_count = self.width as usize * self.height as usize;
+
+        let mut rgba: Vec<Rgba8> = Vec::with_capacity(pix_count);
+
+        for p in &self.data {
+            rgba.push(p.to_rgba8());
+        }
+
+        rgba
+    }
+
+    fn get_width(&self) -> u16 {
+        self.width
+    }
+
+    fn get_height(&self) -> u16 {
+        self.height
+    }
+}
+
+
+
 pub trait VTFImage {
-    fn to_rgb888(&self) -> Vec<Rgb888>;
-    fn to_rgb888_raw(&self) -> Vec<u8> {
-        let rgb = self.to_rgb888();
+    fn to_rgb8(&self) -> Vec<Rgb8>;
+    fn to_rgb8_raw(&self) -> Vec<u8> {
+        let rgb = self.to_rgb8();
 
         let mut rgb_raw = Vec::with_capacity(rgb.len() * 3);
         for p in &rgb {
@@ -702,7 +769,7 @@ pub trait VTFImage {
         /*
         use std::mem;
 
-        let mut rgb = self.to_rgb888();
+        let mut rgb = self.to_rgb8();
         unsafe{
             let ptr = rgb.as_mut_ptr();
             let len = rgb.len() * 3;
@@ -713,9 +780,9 @@ pub trait VTFImage {
         */
     }
 
-    fn to_rgba8888(&self) -> Vec<Rgba8888>;
-    fn to_rgba8888_raw(&self) -> Vec<u8> {
-        let rgba = self.to_rgba8888();
+    fn to_rgba8(&self) -> Vec<Rgba8>;
+    fn to_rgba8_raw(&self) -> Vec<u8> {
+        let rgba = self.to_rgba8();
 
         let mut rgba_raw = Vec::with_capacity(rgba.len() * 4);
         for p in &rgba {
@@ -729,7 +796,7 @@ pub trait VTFImage {
         /*
         use std::mem;
 
-        let mut rgba = self.to_rgba8888();
+        let mut rgba = self.to_rgba8();
         unsafe{
             let ptr = rgba.as_mut_ptr();
             let len = rgba.len() * 4;
@@ -747,17 +814,17 @@ pub trait VTFImage {
 /// Interpolates between colors c0 and c1. When factor is false,
 /// the output color is set to 2/3 c0 + 1/3 c1. When factor is
 /// true, the output color is set to 1/3 c0 + 2/3 c1
-fn interp_color(c0: &Rgb888, c1: &Rgb888, factor: bool) -> Rgb888 {
-    let c0 = Rgb161616 {red: c0.red as u16, green: c0.green as u16, blue: c0.blue as u16};
-    let c1 = Rgb161616 {red: c1.red as u16, green: c1.green as u16, blue: c1.blue as u16};
+fn interp_color(c0: &Rgb8, c1: &Rgb8, factor: bool) -> Rgb8 {
+    let c0 = Rgb16 {red: c0.red as u16, green: c0.green as u16, blue: c0.blue as u16};
+    let c1 = Rgb16 {red: c1.red as u16, green: c1.green as u16, blue: c1.blue as u16};
 
     match factor {
-        true =>     Rgb888 {
+        true =>     Rgb8 {
                         red: ((2 * c0.red + c1.red) / 3) as u8,
                         green: ((2 * c0.green + c1.green) / 3) as u8,
                         blue: ((2 * c0.blue + c1.blue) / 3) as u8
                     },
-        false =>    Rgb888 {
+        false =>    Rgb8 {
                         red: ((c0.red + 2 * c1.red) / 3) as u8,
                         green: ((c0.green + 2 * c1.green) / 3) as u8,
                         blue: ((c0.blue + 2 * c1.blue) / 3) as u8,
