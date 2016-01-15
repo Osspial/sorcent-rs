@@ -65,7 +65,7 @@ impl HeaderRoot {
     }
 }
 
-impl Data for HeaderRoot {
+impl VTFData for HeaderRoot {
     fn load<R>(source: &mut R) -> Result<HeaderRoot, VTFLoadError> where R: Read {
         use std::mem::transmute;
 
@@ -112,7 +112,7 @@ impl Header70 {
     }
 }
 
-impl Data for Header70 {
+impl VTFData for Header70 {
     fn load<R>(source: &mut R) -> Result<Header70, VTFLoadError> where R: Read {
         use std::mem::transmute;
 
@@ -148,7 +148,7 @@ pub struct Header72 {
     pub depth           :c_ushort
 }
 
-impl Data for Header72 {
+impl VTFData for Header72 {
     fn load<R>(source: &mut R) -> Result<Header72, VTFLoadError> where R: Read {
         use std::mem::transmute;
 
@@ -170,7 +170,7 @@ pub struct Header73 {
     pub resource_count  :c_uint
 }
 
-impl Data for Header73 {
+impl VTFData for Header73 {
     fn load<R>(source: &mut R) -> Result<Header73, VTFLoadError> where R: Read {
         use std::mem::transmute;
 
@@ -194,7 +194,7 @@ pub struct Resource {
     pub data        :u32
 }
 
-impl Data for Resource {
+impl VTFData for Resource {
     fn load<R>(source: &mut R) -> Result<Self, VTFLoadError> where R: Read {
         use std::mem::transmute;
 
@@ -213,7 +213,7 @@ impl Data for Resource {
     }
 }
 
-pub trait Data 
+pub trait VTFData 
     where Self: Sized {
 
     fn load<R>(source: &mut R) -> Result<Self, VTFLoadError> where R: Read;

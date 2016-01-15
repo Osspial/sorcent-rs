@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::{Seek, SeekFrom};
 use std::mem;
 
-pub use self::format::{Data, HeaderRoot, Header70, Header72, Header73, Resource, ResourceID, HeaderVersion, ImageFormat};
+pub use self::format::{VTFData, HeaderRoot, Header70, Header72, Header73, Resource, ResourceID, HeaderVersion, ImageFormat};
 use self::image::{VTFImageWrapper};
 
 use self::error::{VTFLoadError, VTFError};

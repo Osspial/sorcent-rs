@@ -37,26 +37,26 @@ pub enum VTFError {
 }
 
 impl VTFError {
-    fn __description(&self) -> &str {
+    fn description(&self) -> &str {
         match self {
-            &VTFError::HeaderSignature => "Invalid Header; Signature does not match VTF",
-            &VTFError::HeaderVersion => "Invalid Header; File version does not match 7.0 - 7.5",
-            &VTFError::HeaderImageFormat => "Invalid Header; Invalid image format",
-            &VTFError::ImageSize => "Image width or height is not power of two",
-            &VTFError::FileSize => "File too small to contain header",
-            &VTFError::ResourceID => "Invalid Resource ID"
+            &VTFError::HeaderSignature      => "Invalid Header; Signature does not match VTF",
+            &VTFError::HeaderVersion        => "Invalid Header; File version does not match 7.0 - 7.5",
+            &VTFError::HeaderImageFormat    => "Invalid Header; Invalid image format",
+            &VTFError::ImageSize            => "Image width or height is not power of two",
+            &VTFError::FileSize             => "File too small to contain header",
+            &VTFError::ResourceID           => "Invalid Resource ID"
         }
     }
 }
 
 impl fmt::Display for VTFError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.__description().fmt(f)
+        self.description().fmt(f)
     }
 }
 
 impl error::Error for VTFError {
     fn description(&self) -> &str {
-        self.__description()
+        self.description()
     }
 }
