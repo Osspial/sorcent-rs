@@ -37,7 +37,7 @@ pub enum VTFError {
 }
 
 impl VTFError {
-    fn description(&self) -> &str {
+    fn get_description(&self) -> &str {
         match self {
             &VTFError::HeaderSignature      => "Invalid Header; Signature does not match VTF",
             &VTFError::HeaderVersion        => "Invalid Header; File version does not match 7.0 - 7.5",
@@ -51,12 +51,12 @@ impl VTFError {
 
 impl fmt::Display for VTFError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.description().fmt(f)
+        self.get_description().fmt(f)
     }
 }
 
 impl error::Error for VTFError {
     fn description(&self) -> &str {
-        self.description()
+        self.get_description()
     }
 }
