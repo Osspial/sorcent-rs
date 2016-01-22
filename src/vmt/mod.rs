@@ -1,6 +1,8 @@
 #[allow(dead_code)]
 pub mod format;
 #[allow(dead_code)]
+mod lexer;
+#[allow(dead_code)]
 pub mod types;
 pub mod error;
 
