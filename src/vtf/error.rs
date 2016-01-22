@@ -26,7 +26,7 @@ impl error::Error for VTFLoadError {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VTFError {
     HeaderSignature,
     HeaderVersion,
