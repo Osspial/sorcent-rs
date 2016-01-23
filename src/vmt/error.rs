@@ -34,7 +34,7 @@ impl error::Error for VMTLoadError {
 pub enum VMTError {
     UnclosedBlock,
     InvalidToken, // TODO: Add additional description to InvalidToken
-    SyntaxError, // TODO: Add additional description
+    SyntaxError(String),
     UnknownShader(String),
     UnknownParameter(String),
 }
@@ -44,7 +44,7 @@ impl VMTError {
         match self {
             &VMTError::UnclosedBlock        => "Unclosed Block; missing \"}\"",
             &VMTError::InvalidToken         => "Invalid token",
-            &VMTError::SyntaxError          => "Syntax Error",
+            &VMTError::SyntaxError(_)       => "Syntax Error",
             &VMTError::UnknownShader(_)     => "Unknown Shader found",
             &VMTError::UnknownParameter(_)  => "Unknown Parameter found"
         }
@@ -55,8 +55,9 @@ impl fmt::Display for VMTError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 
         match self {
-            &VMTError::UnknownShader(ref s)     => format!("Unknown Shader: {}", &s).fmt(f),
-            &VMTError::UnknownParameter(ref s)  => format!("Unknown Parameter: {}", &s).fmt(f),
+            &VMTError::UnknownShader(ref s)     => format!("Unknown Shader: {}", s).fmt(f),
+            &VMTError::UnknownParameter(ref s)  => format!("Unknown Parameter: {}", s).fmt(f),
+            &VMTError::SyntaxError(ref s)       => format!("Syntax Error: {}", s).fmt(f),
             _                                   => self.description().fmt(f)
         }
     }

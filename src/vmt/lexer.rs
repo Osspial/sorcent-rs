@@ -1,6 +1,6 @@
 use std::fmt;
 use std::str::Chars;
-use vmt::error::{VMTLoadResult, VMTLoadError, VMTError};
+use vmt::error::{VMTResult, VMTLoadError, VMTError};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Token<'s> {
@@ -18,7 +18,7 @@ pub enum Token<'s> {
 }
 
 impl<'s> Token<'s> {
-    fn get_inner_str(&self) -> Option<&'s str> {
+    pub fn get_inner_str(&self) -> Option<&'s str> {
         match self {
             &Token::BlockType(s)    => Some(s),
             &Token::ParamType(s)    => Some(s),
@@ -86,8 +86,8 @@ pub struct Lexer<'s> {
 
 impl<'s> Lexer<'s> {
 
-    pub fn new(source_str: &'s str) -> VMTLoadResult<Lexer> {
-        let mut token_vec = Vec::with_capacity(16);
+    pub fn new(source_str: &'s str) -> VMTResult<Lexer> {
+        let mut token_vec = Vec::with_capacity(64);
         token_vec.push(Token::Start);
 
         let mut lexer = Lexer {
@@ -100,6 +100,7 @@ impl<'s> Lexer<'s> {
         };
 
         while try!(lexer.load_token()) != None {}
+        lexer.tokens.push(Token::End);
 
         Ok(lexer)
     }
@@ -110,7 +111,7 @@ impl<'s> Lexer<'s> {
     ///
     /// Returns a result with the number of tokens read. If it returns None,
     /// the EoF has been reached. 
-    fn load_token(&mut self) -> VMTLoadResult<Option<usize>> {
+    fn load_token(&mut self) -> VMTResult<Option<usize>> {
         if self.state == State::EoF {
             return Ok(None);
         }
@@ -131,12 +132,16 @@ impl<'s> Lexer<'s> {
 
             // Figure out state based on loaded character
             self.state = match chara {
-                '\n'    => State::Newline,
-                '"'    => match self.last_state {
+                '\n'    => match self.last_state {
+                                State::QuoteChar |
+                                State::QuoteStart   => return Err(VMTError::SyntaxError("Unclosed quote".into())),
+                                _                   => State::Newline
+                },
+
+                '"'     => match self.last_state {
                                 State::QuoteChar |
                                 State::QuoteStart => State::QuoteEnd,
                                 _                   => State::QuoteStart,
-
                 },
 
                 '{'     => State::BlockStart,
@@ -202,23 +207,27 @@ impl<'s> Lexer<'s> {
                         // this works well for inner blocks where whether a value is a BlockType or not is
                         // dependent on a character that comes after it.
                         State::BlockStart   => {let token = Token::BlockType(self.tokens.pop().unwrap().get_inner_str().unwrap());
-                                                self.tokens.push(token)},
+                                                self.tokens.push(token)}
                         State::BlockEnd     => (),
                         _                   => match last {
                                                     Token::Start            => self.tokens.push(Token::BlockType(&self.source_str[str_pos..str_len+str_pos])),
                                                     Token::BlockStart |
                                                     Token::ParamValue(_)    => self.tokens.push(Token::ParamType(&self.source_str[str_pos..str_len+str_pos])),
                                                     Token::ParamType(_)     => self.tokens.push(Token::ParamValue(&self.source_str[str_pos..str_len+str_pos])),
-                                                    _                       => return Err(VMTLoadError::VMT(VMTError::SyntaxError))
+                                                    _                       => return Err(VMTError::SyntaxError("you dun goofed".into()))
                         }
                     }
                 }
 
                 match self.state {
-                    State::BlockStart   => {self.tokens.push(Token::BlockStart);
-                                            return Ok(Some(2))},
-                    State::BlockEnd     => {self.tokens.push(Token::BlockEnd);
-                                            return Ok(Some(2))},
+                    State::BlockStart   => {
+                        self.tokens.push(Token::BlockStart);
+                        return Ok(Some(2));
+                    }
+                    State::BlockEnd     => {
+                        self.tokens.push(Token::BlockEnd);
+                        return Ok(Some(2));
+                    }
                     _                   => return Ok(Some(1))
                 }
             }
