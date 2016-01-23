@@ -118,10 +118,6 @@ impl<'s> Lexer<'s> {
         let mut str_pos = self.char_cursor;
         let mut str_len = 0;
 
-        // To what degree you are loaded with money
-        // (is actually how many tokens have been loaded)
-        let mut loaded: usize = 0;
-
         loop {
             // Move the current state to the previous state
             self.last_state = self.state;
@@ -204,7 +200,7 @@ impl<'s> Lexer<'s> {
                         // If the state is the start of a block, get the inner &str from the last token
                         // and place it in a new BlockType token. While redundant for the start of the file,
                         // this works well for inner blocks where whether a value is a BlockType or not is
-                        // dependant on a character that comes after it.
+                        // dependent on a character that comes after it.
                         State::BlockStart   => {let token = Token::BlockType(self.tokens.pop().unwrap().get_inner_str().unwrap());
                                                 self.tokens.push(token)},
                         State::BlockEnd     => (),
@@ -216,15 +212,14 @@ impl<'s> Lexer<'s> {
                                                     _                       => return Err(VMTLoadError::VMT(VMTError::SyntaxError))
                         }
                     }
-                    loaded += 1;
                 }
 
                 match self.state {
                     State::BlockStart   => {self.tokens.push(Token::BlockStart);
-                                            return Ok(Some(loaded + 1))},
+                                            return Ok(Some(2))},
                     State::BlockEnd     => {self.tokens.push(Token::BlockEnd);
-                                            return Ok(Some(loaded + 1))},
-                    _                   => return Ok(Some(loaded))
+                                            return Ok(Some(2))},
+                    _                   => return Ok(Some(1))
                 }
             }
         }
