@@ -8,29 +8,36 @@ pub enum Token<'s> {
     Start,
     BlockStart,
     BlockEnd,
-    ShaderType(&'s str),
+    BlockType(&'s str),
     /// Shader parameter type
     ParamType(&'s str),
     /// Shader parameter value
     ParamValue(&'s str),
-    /// 'Proxies' statement
-    ProxyDecl,
-    ProxyType(&'s str),
     /// End of file
     End
+}
+
+impl<'s> Token<'s> {
+    fn get_inner_str(&self) -> Option<&'s str> {
+        match self {
+            &Token::BlockType(s)    => Some(s),
+            &Token::ParamType(s)    => Some(s),
+            &Token::ParamValue(s)   => Some(s),
+            _               => None
+        }
+    }
 }
 
 impl<'s> fmt::Display for Token<'s> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &Token::ShaderType(ref s)   => write!(f, "{}", s),
-            &Token::ParamType(ref s)   => write!(f, "{}", s),
-            &Token::ParamValue(ref s)   => write!(f, "{}", s),
-            &Token::ProxyType(ref s)    => write!(f, "{}", s),
+            &Token::BlockType(ref s)   => write!(f, "Block Type: {}", s),
+            &Token::ParamType(ref s)   => write!(f, "Parameter Type: {}", s),
+            &Token::ParamValue(ref s)   => write!(f, "Parameter Value: {}", s),
             other => write!(f, "{}", match other {
+                &Token::Start       => "SoF",
                 &Token::BlockStart  => "{",
                 &Token::BlockEnd    => "}",
-                &Token::ProxyDecl   => "Proxies",
                 _                   => unreachable!()
             })
         }
@@ -209,10 +216,15 @@ impl<'s> Lexer<'s> {
                     let last = self.tokens[self.tokens.len() - 1];
 
                     match self.state {
-                        State::BlockStart   => (),
+                        // If the state is the start of a block, get the inner &str from the last token
+                        // and place it in a new BlockType token. While redundant for the start of the file,
+                        // this works well for inner blocks where whether a value is a BlockType or not is
+                        // dependant on a character that comes after it.
+                        State::BlockStart   => {let token = Token::BlockType(self.tokens.pop().unwrap().get_inner_str().unwrap());
+                                                self.tokens.push(token)},
                         State::BlockEnd     => (),
                         _                   => match last {
-                                                    Token::Start            => self.tokens.push(Token::ShaderType(&self.source_str[str_pos..str_len+str_pos])),
+                                                    Token::Start            => self.tokens.push(Token::BlockType(&self.source_str[str_pos..str_len+str_pos])),
                                                     Token::BlockStart |
                                                     Token::ParamValue(_)    => self.tokens.push(Token::ParamType(&self.source_str[str_pos..str_len+str_pos])),
                                                     Token::ParamType(_)     => self.tokens.push(Token::ParamValue(&self.source_str[str_pos..str_len+str_pos])),
