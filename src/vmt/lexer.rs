@@ -60,14 +60,6 @@ enum State {
     BlockStart,
     /// Triggered on '}'
     BlockEnd,
-    /// Triggered on '<'
-    ConAboveStarted,
-    /// Triggered on '>'
-    ConBelowStarted,
-    /// Triggered on '<='
-    ConAboveEqual,
-    /// Triggered on '>='
-    ConBelowEqual,
     /// Triggered on any whitespace character that isn't between quotes
     Whitespace,
     /// Triggered on '/'. Becomes a char if it is not followed by a second '/'
@@ -153,13 +145,6 @@ impl<'s> Lexer<'s> {
 
                 '{'     => State::BlockStart,
                 '}'     => State::BlockEnd,
-                '<'     => State::ConAboveStarted,
-                '>'     => State::ConBelowStarted,
-                '='     => match self.last_state {
-                                State::ConAboveStarted  => State::ConAboveEqual,
-                                State::ConBelowStarted  => State::ConBelowEqual,
-                                _                       => return Err(VMTLoadError::VMT(VMTError::InvalidToken)) // TODO: Add additional description to InvalidToken
-                },
 
                 ' '|'\t'|'\r'=> match self.last_state {
                                 State::QuoteChar |
