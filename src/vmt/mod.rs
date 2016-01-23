@@ -6,23 +6,25 @@ mod lexer;
 pub mod types;
 pub mod error;
 
-use self::format::{Shader};
-use self::error::VMTLoadError;
 use std::fs::File;
-use std::io::{BufReader};
+use std::io::{Read, BufReader};
 
-pub struct VMTFile {
-    shader: Shader
+use self::lexer::Lexer;
+
+pub struct VMTFile<'s> {
+    vmt_str: String,
+    lexer: Lexer<'s>
 }
 
-/*
-impl VMTFile {
-    pub fn open(file: &mut File) -> Result<VMTFile, VMTLoadError> {
+
+impl<'s> VMTFile<'s> {
+    pub fn open(file: &mut File) {
         let mut buf_read = BufReader::new(file);
+        let mut vmt_string = String::new();
 
-        let shader = Shader::load(&mut buf_read).unwrap();
+        buf_read.read_to_string(&mut vmt_string).unwrap();
+        let lexer = Lexer::new(&vmt_string[..]).unwrap();
 
-        Ok(VMTFile{ shader: shader })
+        println!("{:#?}", lexer.tokens);
     }
 }
-*/
