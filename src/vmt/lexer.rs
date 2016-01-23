@@ -181,7 +181,7 @@ impl<'s> Lexer<'s> {
             match self.state {
                 State::Newline |
                 State::QuoteStart   => str_pos += 1,
-                
+
                 // This detects if the whitespace comes right after a character, which
                 // would be the case if it were coming off of a non-quoted parameter.
                 // If it detects that, then it shouldn't move the cursor forward and should
@@ -208,17 +208,22 @@ impl<'s> Lexer<'s> {
                 if str_len != 0 {
                     let last = self.tokens[self.tokens.len() - 1];
 
-                    self.tokens.push(match last {
-                                        Token::Start            => Token::ShaderType(&self.source_str[str_pos..str_len+str_pos]),
-                                        Token::BlockStart |
-                                        Token::ParamValue(_)    => Token::ParamType(&self.source_str[str_pos..str_len+str_pos]),
-                                        Token::ParamType(_)     => Token::ParamValue(&self.source_str[str_pos..str_len+str_pos]),
-                                        _                       => match self.state {
-                                                                        State::BlockStart   => Token::BlockStart,
-                                                                        State::BlockEnd     => Token::BlockEnd,
-                                                                        _                   => return Err(VMTLoadError::VMT(VMTError::SyntaxError))
-                                        }
-                    });
+                    match last {
+                        Token::Start            => self.tokens.push(Token::ShaderType(&self.source_str[str_pos..str_len+str_pos])),
+                        Token::BlockStart |
+                        Token::ParamValue(_)    => match self.state {
+                                                        State::BlockEnd => (),
+                                                        _               => self.tokens.push(Token::ParamType(&self.source_str[str_pos..str_len+str_pos]))
+                        },
+
+                        Token::ParamType(_)     => self.tokens.push(Token::ParamValue(&self.source_str[str_pos..str_len+str_pos])),
+
+                        _                       => match self.state {
+                                                        State::BlockStart   => (),
+                                                        State::BlockEnd     => (),
+                                                        _                   => return Err(VMTLoadError::VMT(VMTError::SyntaxError))
+                        }
+                    };
                     loaded += 1;
                 }
 
