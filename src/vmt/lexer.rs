@@ -140,21 +140,28 @@ impl<'s> Lexer<'s> {
 
                 '"'     => match self.last_state {
                                 State::QuoteChar |
-                                State::QuoteStart => State::QuoteEnd,
+                                State::QuoteStart   => State::QuoteEnd,
+                                State::Comment |
+                                State::CommentChar  => State::CommentChar,
                                 _                   => State::QuoteStart,
                 },
 
                 '{'     => State::BlockStart,
                 '}'     => State::BlockEnd,
 
-                ' '|'\t'|'\r'=> match self.last_state {
+                ' ' |
+                '\t'|
+                '\r'    => match self.last_state {
                                 State::QuoteChar |
                                 State::QuoteStart       => State::QuoteChar,
+                                State::Comment |
+                                State::CommentChar      => State::CommentChar,
                                 _                       => State::Whitespace
                 },
 
                 '/'     => match self.last_state {
                                 State::CommentStart     => State::Comment,
+                                State::CommentChar  => State::CommentChar,
                                 State::QuoteStart |
                                 State::QuoteChar        => State::QuoteChar,
                                 _                       => State::CommentStart
@@ -163,6 +170,8 @@ impl<'s> Lexer<'s> {
                 _       => match self.last_state {
                                 State::QuoteChar |
                                 State::QuoteStart       => State::QuoteChar,
+                                State::Comment |
+                                State::CommentChar      => State::CommentChar,
                                 _                       => State::Char
                 }
             };
@@ -173,7 +182,8 @@ impl<'s> Lexer<'s> {
             // slice.
             match self.state {
                 State::Newline |
-                State::QuoteStart   => str_pos += 1,
+                State::QuoteStart|
+                State::Comment      => str_pos += 1,
 
                 // This detects if the whitespace comes right after a character, which
                 // would be the case if it were coming off of a non-quoted parameter.
@@ -184,12 +194,14 @@ impl<'s> Lexer<'s> {
                                             _           => str_pos += 1
                 },
 
+                State::CommentChar  => str_len = 0,
+
                 State::QuoteEnd     => (),
                 _                   => str_len += 1
             }
             self.char_cursor += 1;
 
-            //println!("{:?}\t{:?}\t{}", self.state, chara, str_len);
+            println!("{:?}\t{:?}\t{}", self.state, chara, str_len);
 
             if self.state == State::QuoteEnd ||
                self.state == State::BlockStart ||
