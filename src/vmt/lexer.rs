@@ -176,14 +176,22 @@ impl<'s> Lexer<'s> {
                 }
             };
 
+            // If you're coming from up top, read down below to see
+            // why I exist. If you came from below, hi. How's life?
+            // Are HMDs all they were hyped up to be? I don't know.
+            // I'm just an if statement.
+            if self.last_state == State::CommentStart && self.state != State::Comment {
+                self.last_state = State::Char;
+                str_len += 1;
+            }
+
             // If the lexer has loaded the start of a quote, move the 
             // start of the slice past the quote. Also skips past any
             // whitespace. Otherwise, increase the length of the string 
             // slice.
             match self.state {
                 State::Newline |
-                State::QuoteStart|
-                State::Comment      => str_pos += 1,
+                State::QuoteStart   => str_pos += 1,
 
                 // This detects if the whitespace comes right after a character, which
                 // would be the case if it were coming off of a non-quoted parameter.
@@ -194,9 +202,18 @@ impl<'s> Lexer<'s> {
                                             _           => str_pos += 1
                 },
 
+                // If the lexer has detected that a comment has been started, setting
+                // the length of the string to zero will cause the lexer to skip it
                 State::CommentChar  => str_len = 0,
 
-                State::QuoteEnd     => (),
+                State::QuoteEnd |
+                // With CommentStart, we aren't sure if it will become a comment or not.
+                // If it does, we can safely ignore it - however, if it doesn't, we have
+                // to increase str_len. We can't figure out which is going to happen until
+                // we have the next state, so whether or not to increase the str_len is
+                // deferred until then. Look up to see the if statement that checks that.
+                State::CommentStart |
+                State::Comment      => (),
                 _                   => str_len += 1
             }
             self.char_cursor += 1;
@@ -206,7 +223,8 @@ impl<'s> Lexer<'s> {
             if self.state == State::QuoteEnd ||
                self.state == State::BlockStart ||
                self.state == State::BlockEnd ||
-               self.state == State::Whitespace {
+               self.state == State::Whitespace ||
+               self.state == State::Comment {
 
                 // Only pushes token if the lexer has loaded more than just whitespace
                 // since the last 
