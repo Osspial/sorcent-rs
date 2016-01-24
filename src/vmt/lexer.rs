@@ -1,8 +1,8 @@
 use std::fmt;
 use std::str::Chars;
-use vmt::error::{VMTResult, VMTLoadError, VMTError};
+use vmt::error::{VMTResult, VMTError};
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Token<'s> {
     /// Start of file
     Start,
