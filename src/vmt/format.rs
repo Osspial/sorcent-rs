@@ -1,6 +1,8 @@
 use vmt::lexer::Token;
 use vmt::error::{VMTResult, VMTError};
 
+use std::fmt;
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum State {
     ShaderType,
@@ -14,20 +16,20 @@ enum State {
 }
 
 #[derive(Debug)]
-pub struct Shader<'s> {
-    pub s_type: &'s str,
-    pub parameters: Vec<Parameter<'s>>,
+pub struct Shader {
+    s_type: RSlice,
+    parameters: Vec<Parameter>,
     //pub proxies: Vec<Proxy<'s>>
 }
 
 
-impl<'s> Shader<'s> {
+impl Shader {
     /// element_lens: a vector of the lengths of each slice contained in element_str
-    pub fn from_raw_parts(tokens: &Vec<Token>, element_str: &'s str, element_lens: &Vec<usize>) -> VMTResult<Shader<'s>> {
+    pub fn from_raw_parts<'s>(tokens: &Vec<Token>, element_str: &'s str, element_lens: &Vec<usize>) -> VMTResult<Shader> {
         let empty_slice = &element_str[0..0];
 
         let mut shader_type: &'s str = empty_slice;
-        let mut parameters: Vec<Parameter<'s>> = Vec::with_capacity(16);
+        let mut parameters: Vec<Parameter> = Vec::with_capacity(16);
         let mut state = State::Default;
 
         // What number token we're on
@@ -44,6 +46,8 @@ impl<'s> Shader<'s> {
                 Token::End      => (),
                 _   => {
                     match state {
+                        // If the file just been loaded, the first block type
+                        // is going to correspond to a shader.
                         State::Default          => {
                             match *t {
                                 Token::BlockType(_) => {
@@ -58,6 +62,8 @@ impl<'s> Shader<'s> {
                             }
                         }
 
+                        // After a shader has been loaded, anything but a block start
+                        // is an error
                         State::ShaderType       => {
                             match *t {
                                 Token::BlockStart   => state = State::ShaderBlockStart,
@@ -65,6 +71,8 @@ impl<'s> Shader<'s> {
                             }
                         }
 
+                        // Loads a parameter type, which can occur after a parameter
+                        // value or after the start of a block.
                         State::ShaderBlockStart |
                         State::ShaderParamValue => {
                             match *t {
@@ -108,25 +116,83 @@ impl<'s> Shader<'s> {
                 }
             }
         }
+
+        match state {
+            State::ShaderBlockEnd => (),
+            _ => return Err(VMTError::SyntaxError("Unclosed block".into()))
+        }
         
 
-        Ok(Shader{s_type: shader_type, parameters: parameters})
+        Ok(Shader{s_type: RSlice::from_str(shader_type), parameters: parameters})
+    }
+
+    pub fn get_parameters(&self) -> &[Parameter] {
+        &self.parameters[..]
     }
 }
 
 #[derive(Debug)]
-pub struct Parameter<'s> {
-    pub p_type: &'s str,
-    pub value: &'s str
+pub struct Parameter {
+    // The type of parameter
+    p_type: RSlice,
+    // The value in the parameter
+    value: RSlice
 }
 
-impl<'s> Parameter<'s> {
-    pub fn new(p_type: &'s str, value: &'s str) -> Parameter<'s> {
-        Parameter{p_type: p_type, value: value}
+impl Parameter {
+    fn new(p_type: &str, value: &str) -> Parameter {
+        Parameter{ p_type: RSlice::from_str(p_type), value: RSlice::from_str(value)}
+    }
+
+    pub fn get_type(&self) -> &str {
+        self.p_type.to_str()
+    }
+
+    pub fn get_value(&self) -> &str {
+        self.value.to_str()
     }
 }
 
-pub struct Proxy<'s> {
-    pub r_type: &'s str,
-    pub parameters: Vec<Parameter<'s>>
+/// A representation of a string slice with a constant pointer
+/// to the location of the string and the string length. Used 
+/// instead of an actual slice to get around the borrow checker.
+struct RSlice {
+    ptr: *const u8,
+    len: usize
 }
+
+impl RSlice {
+    fn from_str(s: &str) -> RSlice {
+        RSlice::from_raw_parts(s.as_ptr(), s.len())
+    }
+
+    #[inline(always)]
+    fn from_raw_parts(ptr: *const u8, len: usize) -> RSlice {
+        RSlice{ptr: ptr, len: len}
+    }
+
+    fn to_str(&self) -> &str {
+        use std::slice;
+        use std::str;
+
+        unsafe {
+            let slice = slice::from_raw_parts(self.ptr, self.len);
+
+            str::from_utf8(slice).unwrap()
+        }
+    }
+}
+
+impl fmt::Display for RSlice {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{}", self.to_str())
+    }
+}
+
+impl fmt::Debug for RSlice {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "{:?}", self.to_str())
+    }
+}
+
+pub type Proxy = Vec<Parameter>;
