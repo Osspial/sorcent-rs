@@ -130,51 +130,56 @@ impl<'s> Lexer<'s> {
 
             let chara = self.char_iter.next().unwrap();
 
-            // Figure out state based on loaded character
-            self.state = match chara {
-                '\n'    => match self.last_state {
-                                State::QuoteChar |
-                                State::QuoteStart   => return Err(VMTError::SyntaxError("Unclosed quote".into())),
-                                _                   => State::Newline
-                },
+            // Figure out state based on loaded character. The only
+            // character that can abort a comment is a newline, so this
+            // accounts for that. Otherwise, any character that comes after
+            // a comment MUST be a comment character and can be safely ignored
+            // by the lexer
+            if (self.last_state == State::Comment ||
+                self.last_state == State::CommentChar) && chara != '\n' 
+            {
+                self.state = State::CommentChar;
+            }
+            else {
+                self.state = match chara {
+                    '\n'    => match self.last_state {
+                                    State::QuoteChar |
+                                    State::QuoteStart   => return Err(VMTError::SyntaxError("Unclosed quote".into())),
+                                    _                   => State::Newline
+                    },
 
-                '"'     => match self.last_state {
-                                State::QuoteChar |
-                                State::QuoteStart   => State::QuoteEnd,
-                                State::Comment |
-                                State::CommentChar  => State::CommentChar,
-                                _                   => State::QuoteStart,
-                },
+                    '"'     => match self.last_state {
+                                    State::QuoteChar |
+                                    State::QuoteStart   => State::QuoteEnd,
+                                    _                   => State::QuoteStart,
+                    },
 
-                '{'     => State::BlockStart,
-                '}'     => State::BlockEnd,
+                    '{'     => State::BlockStart,
+                    '}'     => State::BlockEnd,
 
-                ' ' |
-                '\t'|
-                '\r'    => match self.last_state {
-                                State::QuoteChar |
-                                State::QuoteStart       => State::QuoteChar,
-                                State::Comment |
-                                State::CommentChar      => State::CommentChar,
-                                _                       => State::Whitespace
-                },
+                    ' ' |
+                    '\t'|
+                    '\r'    => match self.last_state {
+                                    State::QuoteChar |
+                                    State::QuoteStart       => State::QuoteChar,
+                                    _                       => State::Whitespace
+                    },
 
-                '/'     => match self.last_state {
-                                State::CommentStart     => State::Comment,
-                                State::CommentChar  => State::CommentChar,
-                                State::QuoteStart |
-                                State::QuoteChar        => State::QuoteChar,
-                                _                       => State::CommentStart
-                },
+                    '/'     => match self.last_state {
+                                    State::CommentStart     => State::Comment,
+                                    State::QuoteStart |
+                                    State::QuoteChar        => State::QuoteChar,
+                                    _                       => State::CommentStart
+                    },
 
-                _       => match self.last_state {
-                                State::QuoteChar |
-                                State::QuoteStart       => State::QuoteChar,
-                                State::Comment |
-                                State::CommentChar      => State::CommentChar,
-                                _                       => State::Char
-                }
-            };
+                    _       => match self.last_state {
+                                    State::QuoteChar |
+                                    State::QuoteStart       => State::QuoteChar,
+                                    _                       => State::Char
+                    }
+                };
+            }
+            
 
             // If you're coming from up top, read down below to see
             // why I exist. If you came from below, hi. How's life?
@@ -230,6 +235,7 @@ impl<'s> Lexer<'s> {
                 // since the last 
                 if str_len != 0 {
                     let last = self.tokens[self.tokens.len() - 1];
+                    println!("Last Token: {:?}", last);
 
                     match self.state {
                         // If the state is the start of a block, get the inner &str from the last token
