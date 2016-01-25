@@ -145,11 +145,11 @@ impl Parameter {
     }
 
     pub fn get_type(&self) -> &str {
-        self.p_type.to_str()
+        unsafe{ self.p_type.to_str() }
     }
 
     pub fn get_value(&self) -> &str {
-        self.value.to_str()
+        unsafe{ self.value.to_str() }
     }
 }
 
@@ -171,27 +171,25 @@ impl RSlice {
         RSlice{ptr: ptr, len: len}
     }
 
-    fn to_str(&self) -> &str {
+    unsafe fn to_str(&self) -> &str {
         use std::slice;
         use std::str;
 
-        unsafe {
-            let slice = slice::from_raw_parts(self.ptr, self.len);
+        let slice = slice::from_raw_parts(self.ptr, self.len);
 
-            str::from_utf8(slice).unwrap()
-        }
+        str::from_utf8(slice).unwrap()
     }
 }
 
 impl fmt::Display for RSlice {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{}", self.to_str())
+        write!(f, "{}", unsafe{ self.to_str() })
     }
 }
 
 impl fmt::Debug for RSlice {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        write!(f, "{:?}", self.to_str())
+        write!(f, "{:?}", unsafe{ self.to_str() })
     }
 }
 
