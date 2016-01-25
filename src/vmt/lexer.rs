@@ -248,6 +248,7 @@ impl<'s> Lexer<'s> {
                         _                   => match last {
                                                     Token::Start            => self.tokens.push(Token::BlockType(&self.source_str[str_pos..str_len+str_pos])),
                                                     Token::BlockStart |
+                                                    Token::BlockEnd |
                                                     Token::ParamValue(_)    => self.tokens.push(Token::ParamType(&self.source_str[str_pos..str_len+str_pos])),
                                                     Token::ParamType(_)     => self.tokens.push(Token::ParamValue(&self.source_str[str_pos..str_len+str_pos])),
                                                     _                       => return Err(VMTError::SyntaxError("you dun goofed".into()))
