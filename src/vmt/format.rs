@@ -9,7 +9,6 @@ enum State {
     ShaderType,
     ShaderBlockStart,
     ShaderBlockEnd,
-
     ShaderParamType,
     ShaderParamValue,
 
@@ -19,6 +18,8 @@ enum State {
     FallBlockEnd,
     FallParamType,
     FallParamValue,
+
+    // Proxy related states
 
     Default
 }
@@ -227,7 +228,7 @@ impl Shader {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Parameter {
     // The type of parameter
     p_type: RSlice,
@@ -249,7 +250,11 @@ impl Parameter {
     }
 }
 
-pub type Proxy = Vec<Parameter>;
+#[derive(Debug, Clone, Default)]
+pub struct Proxy {
+    p_type: RSlice,
+    parameters: Vec<Parameter>
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct Fallback {
@@ -258,7 +263,24 @@ pub struct Fallback {
     parameters: Vec<Parameter>
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl Fallback {
+    pub fn get_condition(&self) -> FallCond {
+        self.f_cond
+    }
+
+    pub fn get_type(&self) -> &str {
+        unsafe{ self.f_type.to_str() }
+    }
+
+    pub fn get_parameters(&self) -> &[Parameter] {
+        &self.parameters[..]
+    }
+}
+
+/// A conditional statement that indicates under which
+/// conditions the fallback applies (such as when the user is
+/// running below DirectX 9)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FallCond {
     /// Above the value. Triggered on '>'
     Above,
