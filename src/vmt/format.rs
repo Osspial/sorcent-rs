@@ -1,4 +1,4 @@
-use vmt::lexer::Token;
+use common::Token;
 use vmt::error::{VMTResult, VMTError};
 
 use std::fmt;
