@@ -223,7 +223,7 @@ impl<'s> Lexer<'s> {
             }
             self.char_cursor += 1;
 
-            println!("{:?}\t{:?}\t{}", self.state, chara, str_len);
+            //println!("{:?}\t{:?}\t{}", self.state, chara, str_len);
 
             if self.state == State::QuoteEnd ||
                self.state == State::BlockStart ||
@@ -235,7 +235,7 @@ impl<'s> Lexer<'s> {
                 // since the last 
                 if str_len != 0 {
                     let last = self.tokens[self.tokens.len() - 1];
-                    println!("Last Token: {:?}", last);
+                    //println!("Last Token: {:?}", last);
 
                     match self.state {
                         // If the state is the start of a block, get the inner &str from the last token
