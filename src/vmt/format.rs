@@ -67,7 +67,6 @@ impl Shader {
         let mut parameter_type: &'s str = "";
         
         for t in tokens {
-            println!("Token: {:?}\n\t State: {:?}", t, state);
             match *t {
                 Token::Start |
                 Token::End      => (),
