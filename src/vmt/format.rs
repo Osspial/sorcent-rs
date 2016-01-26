@@ -20,6 +20,16 @@ enum State {
     FallParamValue,
 
     // Proxy related states
+    /// State when it reads a "Proxies" block
+    ProxiesDecl,
+    ProxiesStart,
+    ProxiesEnd,
+    // For each individual proxy
+    ProxyBlockType,
+    ProxyBlockStart,
+    ProxyBlockEnd,
+    ProxyParamType,
+    ProxyParamValue,
 
     Default
 }
@@ -29,7 +39,7 @@ pub struct Shader {
     s_type: RSlice,
     parameters: Vec<Parameter>,
     fallbacks: Vec<Fallback>,
-    //pub proxies: Vec<Proxy<'s>>
+    proxies: Vec<Proxy>
 }
 
 
@@ -40,10 +50,13 @@ impl Shader {
         // Most materials don't have any fallbacks, so in most cases
         // we can avoid a heap allocation.
         let mut fallbacks: Vec<Fallback> = Vec::new();
+        // Ditto for proxies
+        let mut proxies: Vec<Proxy> = Vec::new();
         let mut parameters: Vec<Parameter> = Vec::with_capacity(16);
         let mut state = State::Default;
 
         let mut fallback_temp: Fallback = Default::default();
+        let mut proxy_temp: Proxy = Default::default();
 
         // What number token we're on
         let mut ti = 0;
@@ -54,7 +67,7 @@ impl Shader {
         let mut parameter_type: &'s str = "";
         
         for t in tokens {
-            println!("Token: {:?}\t State: {:?}", t, state);
+            println!("Token: {:?}\n\t State: {:?}", t, state);
             match *t {
                 Token::Start |
                 Token::End      => (),
@@ -77,6 +90,13 @@ impl Shader {
                             }
                         }
 
+                        State::ProxiesDecl      => {
+                            match *t {
+                                Token::BlockStart   => state = State::ProxiesStart,
+                                _ => return Err(VMTError::SyntaxError("Missing proxies block start: {".into()))
+                            }
+                        }
+
                         // After a shader has been loaded, anything but a block start
                         // is an error.
                         State::ShaderType       => {
@@ -94,6 +114,37 @@ impl Shader {
                             }
                         }
 
+                        State::ProxyBlockType   => {
+                            match *t {
+                                Token::BlockStart   => state = State::ProxyBlockStart,
+                                _ => return Err(VMTError::SyntaxError("Missing proxy block start: {".into()))
+                            }
+                        }
+
+                        State::ProxiesStart |
+                        State::ProxyBlockEnd    => {
+                            match *t {
+                                Token::BlockType(_) => {
+                                    state = State::ProxyBlockType;
+                                    proxy_temp = Default::default();
+
+                                    proxy_temp.p_type = RSlice::from_str(&element_str[elc..elc+element_lens[ti]]);
+                                    proxy_temp.parameters.reserve(6);
+
+                                    elc += element_lens[ti];
+                                    ti += 1;
+                                }
+
+                                Token::BlockEnd     => {
+                                    state = State::ProxiesEnd;
+                                }
+
+                                Token::ParamType(_) => return Err(VMTError::SyntaxError("Parameter exists in \"Proxies\" block without corresponding proxy".into())),
+                                Token::BlockStart   => return Err(VMTError::SyntaxError("Block exists inside of \"Proxies\" without block tag".into())),
+                                _ => unreachable!()
+                            }
+                        }
+
                         // Handles a few things - starting additional blocks inside of the
                         // shader (such as fallbacks or proxies), ending the shader block,
                         // and starting loading new shader parameters. The reason these are
@@ -102,7 +153,8 @@ impl Shader {
                         // any of these can happen.
                         State::ShaderBlockStart |
                         State::ShaderParamValue |
-                        State::FallBlockEnd          => {
+                        State::FallBlockEnd     |
+                        State::ProxiesEnd       => {
                             match *t {
                                 Token::BlockEnd     => {
                                     state = State::ShaderBlockEnd;                                    
@@ -110,7 +162,12 @@ impl Shader {
 
                                 Token::BlockType(s) => {
                                     match s {
-                                        "Proxies"   => (), //TODO: Proxy shit
+                                        "Proxies"   => {
+                                            state = State::ProxiesDecl;
+                                            elc += element_lens[ti];
+                                            ti += 1;
+                                        }
+
                                         _           => {
                                             state = State::FallBlockType;
                                             fallback_temp = Default::default();
@@ -155,6 +212,27 @@ impl Shader {
                             
                         }
 
+                        State::ProxyBlockStart |
+                        State::ProxyParamValue  => {
+                            match *t {
+                                Token::ParamType(_) => {
+                                    state = State::ProxyParamType;
+
+                                    parameter_type = &element_str[elc..elc+element_lens[ti]];
+
+                                    elc += element_lens[ti];
+                                    ti += 1;
+                                }
+
+                                Token::BlockEnd => {
+                                    state = State::ProxyBlockEnd;
+                                    proxies.push(proxy_temp.clone());
+                                }
+
+                                _ => unreachable!()
+                            }
+                        }
+
                         // Once a fallback block has started, there are two options: for it
                         // to immediately end or for a parameter to start. Once a parameter has
                         // been completed, this option repeats.
@@ -182,7 +260,8 @@ impl Shader {
                         // Once a paramter has started, the differences in code are marginal
                         // so we can group most of it into a single match branch.
                         State::ShaderParamType |
-                        State::FallParamType    => {
+                        State::FallParamType   |
+                        State::ProxyParamType   => {
                             match *t {
                                 Token::ParamValue(_) => {
                                     match state {
@@ -194,6 +273,10 @@ impl Shader {
                                         State::FallParamType    => {
                                             fallback_temp.parameters.push(Parameter::new(parameter_type, &element_str[elc..elc+element_lens[ti]]));
                                             state = State::FallParamValue;
+                                        }
+                                        State::ProxyParamType   => {
+                                            proxy_temp.parameters.push(Parameter::new(parameter_type, &element_str[elc..elc+element_lens[ti]]));
+                                            state = State::ProxyParamValue;
                                         }
                                         _ => unreachable!()
                                     }
@@ -220,7 +303,7 @@ impl Shader {
         }
         
 
-        Ok(Shader{s_type: RSlice::from_str(shader_type), fallbacks: fallbacks, parameters: parameters})
+        Ok(Shader{s_type: RSlice::from_str(shader_type), parameters: parameters, fallbacks: fallbacks, proxies: proxies})
     }
 
     pub fn get_parameters(&self) -> &[Parameter] {
