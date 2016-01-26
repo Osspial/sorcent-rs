@@ -14,6 +14,7 @@ enum State {
     ShaderParamValue,
 
     // Fallback related states
+    FallBlockType,
     FallBlockStart,
     FallBlockEnd,
     FallParamType,
@@ -52,13 +53,15 @@ impl Shader {
         let mut parameter_type: &'s str = "";
         
         for t in tokens {
+            println!("Token: {:?}\t State: {:?}", t, state);
             match *t {
                 Token::Start |
                 Token::End      => (),
                 _   => {
                     match state {
                         // If the file just been loaded, the first block type
-                        // is going to correspond to a shader.
+                        // is going to correspond to a shader. If not, then the
+                        // file isn't valid.
                         State::Default          => {
                             match *t {
                                 Token::BlockType(_) => {
@@ -74,7 +77,7 @@ impl Shader {
                         }
 
                         // After a shader has been loaded, anything but a block start
-                        // is an error
+                        // is an error.
                         State::ShaderType       => {
                             match *t {
                                 Token::BlockStart   => state = State::ShaderBlockStart,
@@ -82,21 +85,24 @@ impl Shader {
                             }
                         }
 
-                        // Loads a parameter type or fallback, which can occur after 
-                        // a parameter value, after a Fallback or after the start of 
-                        // a shader block.
+                        // Ditto, for fallback
+                        State::FallBlockType    => {
+                            match *t {
+                                Token::BlockStart   => state = State::FallBlockStart,
+                                _ => return Err(VMTError::SyntaxError("Missing fallback block start: {".into()))
+                            }
+                        }
+
+                        // Handles a few things - starting additional blocks inside of the
+                        // shader (such as fallbacks or proxies), ending the shader block,
+                        // and starting loading new shader parameters. The reason these are
+                        // all handled in one group is that, once a shader block has started,
+                        // a shader parameter has ended, or a fallback/proxy block has ended
+                        // any of these can happen.
                         State::ShaderBlockStart |
                         State::ShaderParamValue |
                         State::FallBlockEnd          => {
                             match *t {
-                                Token::ParamType(_) => {
-                                    state = State::ShaderParamType;
-                                    parameter_type = &element_str[elc..elc+element_lens[ti]];
-
-                                    elc += element_lens[ti];
-                                    ti += 1;
-                                }
-
                                 Token::BlockEnd     => {
                                     state = State::ShaderBlockEnd;                                    
                                 }
@@ -105,7 +111,7 @@ impl Shader {
                                     match s {
                                         "Proxies"   => (), //TODO: Proxy shit
                                         _           => {
-                                            state = State::FallBlockStart;
+                                            state = State::FallBlockType;
                                             fallback_temp = Default::default();
 
                                             fallback_temp.f_cond = match &s[0..1] {
@@ -136,26 +142,21 @@ impl Shader {
                                     }
                                 }
 
+                                Token::ParamType(_) => {
+                                    state = State::ShaderParamType;
+                                    parameter_type = &element_str[elc..elc+element_lens[ti]];
+
+                                    elc += element_lens[ti];
+                                    ti += 1;
+                                }
                                 _  => panic!("Oss forgot to handle all possibilites in the vmt shader loader! Please open an error on github. Also, give Oss the vmt file that crashed the program")
                             }
                             
                         }
 
-                        State::ShaderParamType  => {
-                            match *t {
-                                Token::ParamValue(_) => {
-                                    state = State::ShaderParamValue;
-
-                                    parameters.push(Parameter::new(parameter_type, &element_str[elc..elc+element_lens[ti]]));
-                                    parameter_type = "";
-
-                                    elc += element_lens[ti];
-                                    ti += 1;
-                                }
-                                _   => return Err(VMTError::SyntaxError("Missing parameter value".into()))
-                            }
-                        }
-
+                        // Once a fallback block has started, there are two options: for it
+                        // to immediately end or for a parameter to start. Once a parameter has
+                        // been completed, this option repeats.
                         State::FallBlockStart |
                         State::FallParamValue   => {
                             match *t {
@@ -168,10 +169,6 @@ impl Shader {
                                     ti += 1;
                                 }
 
-                                Token::BlockStart   => {
-                                    state = State::FallBlockStart
-                                }
-
                                 Token::BlockEnd => {
                                     state = State::FallBlockEnd;
                                     fallbacks.push(fallback_temp.clone());
@@ -181,22 +178,35 @@ impl Shader {
                             }
                         }
 
-
+                        // Once a paramter has started, the differences in code are marginal
+                        // so we can group most of it into a single match branch.
+                        State::ShaderParamType |
                         State::FallParamType    => {
                             match *t {
                                 Token::ParamValue(_) => {
-                                    state = State::FallParamValue;
+                                    match state {
+                                        State::ShaderParamType  => {
+                                            parameters.push(Parameter::new(parameter_type, &element_str[elc..elc+element_lens[ti]]));
+                                            state = State::ShaderParamValue;
+                                        }
 
-                                    fallback_temp.parameters.push(Parameter::new(parameter_type, &element_str[elc..elc+element_lens[ti]]));
+                                        State::FallParamType    => {
+                                            fallback_temp.parameters.push(Parameter::new(parameter_type, &element_str[elc..elc+element_lens[ti]]));
+                                            state = State::FallParamValue;
+                                        }
+                                        _ => unreachable!()
+                                    }
+
+                                    parameter_type = "";
 
                                     elc += element_lens[ti];
                                     ti += 1;
                                 }
-
-                                _   => return Err(VMTError::SyntaxError("Missing paramter value in fallback".into()))
+                                _   => return Err(VMTError::SyntaxError("Missing parameter value".into()))
                             }
                         }
 
+                        
                         State::ShaderBlockEnd   => ()
                     }
                 }
