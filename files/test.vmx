@@ -2,24 +2,12 @@ versioninfo
 {
 	"editorversion" "400"
 	"editorbuild" "7026"
-	"mapversion" "11"
+	"mapversion" "10"
 	"formatversion" "100"
 	"prefab" "0"
 }
 visgroups
 {
-	visgroup
-	{
-		"name" "TriggerVisGroup"
-		"visgroupid" "9"
-		"color" "237 114 203"
-	}
-	visgroup
-	{
-		"name" "BrushVisGroup"
-		"visgroupid" "10"
-		"color" "248 89 222"
-	}
 }
 viewsettings
 {
@@ -32,7 +20,7 @@ viewsettings
 world
 {
 	"id" "1"
-	"mapversion" "11"
+	"mapversion" "10"
 	"classname" "worldspawn"
 	"detailmaterial" "detail/detailsprites_2fort"
 	"detailvbsp" "detail_2fort.vbsp"
@@ -110,7 +98,6 @@ world
 		editor
 		{
 			"color" "0 205 154"
-			"visgroupid" "10"
 			"visgroupshown" "1"
 			"visgroupautoshown" "1"
 		}
@@ -220,7 +207,6 @@ entity
 	editor
 	{
 		"color" "220 30 220"
-		"visgroupid" "9"
 		"visgroupshown" "1"
 		"visgroupautoshown" "1"
 		"logicalpos" "[0 500]"

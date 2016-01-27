@@ -9,9 +9,10 @@ use std::io::{Read, BufReader};
 
 use common::Lexer;
 use self::format::Shader;
-use self::error::VMTLoadResult;
+use self::error::{VMTLoadResult, VMTLoadError};
 
-pub struct VMTFile {
+#[derive(Debug)]
+pub struct VMTFile<'a> {
     // A paddingless string containing all of the strings in the vmt.
     // Used to create slices for the various shader elements. The reason
     // this exists is to avoid unnecessary memory allocation, which is
@@ -19,19 +20,17 @@ pub struct VMTFile {
     // allocated just once.
     #[allow(dead_code)]
     vmt_els: String,
-    pub shader: Shader
+    shader: Shader<'a>,
 }
 
 
-impl VMTFile {
-    pub fn open(file: &mut File) -> VMTFile {
+impl<'a> VMTFile<'a> {
+    pub fn open(file: &mut File) -> VMTLoadResult<VMTFile> {
         let mut buf_read = BufReader::new(file);
         let mut vmt_string = String::new();
 
-        // Will change unwraps into try!s once I get the actual
-        // code compiling
-        buf_read.read_to_string(&mut vmt_string).unwrap();
-        let lexer = Lexer::new(&vmt_string[..]).unwrap();
+        try!(buf_read.read_to_string(&mut vmt_string).map_err(VMTLoadError::Io));
+        let lexer = try!(Lexer::new(&vmt_string[..]).map_err(VMTLoadError::VMT));
 
         // The length of the string that holds all of the vmt strings
         let mut element_len = 0;
@@ -57,7 +56,13 @@ impl VMTFile {
         }
 
 
-        VMTFile{shader: Shader::from_raw_parts(&lexer.tokens, &vmt_elements[..], &element_lens).unwrap(),
-                vmt_els: vmt_elements}
+        unsafe {
+            Ok(VMTFile{shader: try!(Shader::from_raw_parts(&lexer.tokens, &vmt_elements[..], &element_lens).map_err(VMTLoadError::VMT)),
+                       vmt_els: vmt_elements})
+        }
+    }
+
+    pub fn get_shader(&self) -> &Shader {
+        &self.shader
     }
 }

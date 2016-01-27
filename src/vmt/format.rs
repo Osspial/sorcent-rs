@@ -3,6 +3,7 @@ use vmt::error::{VMTResult, VMTError};
 
 use std::fmt;
 use std::default;
+use std::marker::PhantomData;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum State {
@@ -34,18 +35,29 @@ enum State {
     Default
 }
 
-#[derive(Debug)]
-pub struct Shader {
-    s_type: RSlice,
-    parameters: Vec<Parameter>,
-    fallbacks: Vec<Fallback>,
-    proxies: Vec<Proxy>
+#[derive(Debug, Default)]
+pub struct Shader<'a> {
+    s_type: RSlice<'a>,
+    parameters: Vec<Parameter<'a>>,
+    fallbacks: Option<Vec<Fallback<'a>>>,
+    proxies: Option<Vec<Proxy<'a>>>
 }
 
 
-impl Shader {
+impl<'a> Shader<'a> {
+    /// # WARNING: HERE BE DRAGONS
+    /// Hello, intrepid developer! If you've found your way into the source
+    /// code of this crate, you may notice that this function is both marked
+    /// unsafe and is hidden from the documentation. This is for good reason -
+    /// you have no reason to use it. Seriously. A large number of invariants
+    /// are unchecked, and doing so little as modifying whatever element_str
+    /// is sliced from may cause the program to crash without warning. If you
+    /// do use it, I take no responsibility for any lovecraftian horror you
+    /// unleash upon your code.
+    /// 
     /// element_lens: a vector of the lengths of each slice contained in element_str
-    pub fn from_raw_parts<'s>(tokens: &Vec<Token>, element_str: &'s str, element_lens: &Vec<usize>) -> VMTResult<Shader> {
+    #[doc(hidden)]
+    pub unsafe fn from_raw_parts<'s>(tokens: &Vec<Token>, element_str: &'s str, element_lens: &Vec<usize>) -> VMTResult<Shader<'a>> {
         let mut shader_type: &'s str = "";
         // Most materials don't have any fallbacks, so in most cases
         // we can avoid a heap allocation.
@@ -300,9 +312,83 @@ impl Shader {
             State::ShaderBlockEnd => (),
             _ => return Err(VMTError::SyntaxError("Unclosed block".into()))
         }
+
+        let fallbacks = {
+            if fallbacks.len() == 0 {
+                None
+            }
+            else {
+                Some(fallbacks)
+            }
+        };
+
+        let proxies = {
+            if proxies.len() == 0 {
+                None
+            }
+            else {
+                Some(proxies)
+            }
+        };
         
 
         Ok(Shader{s_type: RSlice::from_str(shader_type), parameters: parameters, fallbacks: fallbacks, proxies: proxies})
+    }
+
+    pub fn get_type(&self) -> &str {
+        unsafe{ self.s_type.to_str() }
+    }
+
+    pub fn get_parameters(&self) -> &[Parameter] {
+        &self.parameters[..]
+    }
+
+    pub fn get_fallbacks(&self) -> Option<&[Fallback]> {
+        match self.fallbacks {
+            Some(ref f) => Some(&f[..]),
+            None => None
+        }
+    }
+
+    pub fn get_proxies(&self) -> Option<&[Proxy]> {
+        match self.proxies {
+            Some(ref p) => Some(&p[..]),
+            None => None
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Parameter<'a> {
+    // The type of parameter
+    p_type: RSlice<'a>,
+    // The value in the parameter
+    value: RSlice<'a>,
+}
+
+impl<'a> Parameter<'a> {
+    fn new(p_type: &str, value: &str) -> Parameter<'a> {
+        Parameter{ p_type: RSlice::from_str(p_type), value: RSlice::from_str(value)}
+    }
+
+    pub fn get_type(&self) -> &'a str {
+        unsafe{ self.p_type.to_str() }
+    }
+
+    pub fn get_value(&self) -> &'a str {
+        unsafe{ self.value.to_str() }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct Proxy<'a> {
+    p_type: RSlice<'a>,
+    parameters: Vec<Parameter<'a>>
+}
+
+impl<'a> Proxy<'a> {
+    pub fn get_type(&self) -> &str {
+        unsafe{ self.p_type.to_str() }
     }
 
     pub fn get_parameters(&self) -> &[Parameter] {
@@ -311,41 +397,13 @@ impl Shader {
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Parameter {
-    // The type of parameter
-    p_type: RSlice,
-    // The value in the parameter
-    value: RSlice
-}
-
-impl Parameter {
-    fn new(p_type: &str, value: &str) -> Parameter {
-        Parameter{ p_type: RSlice::from_str(p_type), value: RSlice::from_str(value)}
-    }
-
-    pub fn get_type(&self) -> &str {
-        unsafe{ self.p_type.to_str() }
-    }
-
-    pub fn get_value(&self) -> &str {
-        unsafe{ self.value.to_str() }
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct Proxy {
-    p_type: RSlice,
-    parameters: Vec<Parameter>
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct Fallback {
+pub struct Fallback<'a> {
     f_cond: FallCond,
-    f_type: RSlice,
-    parameters: Vec<Parameter>
+    f_type: RSlice<'a>,
+    parameters: Vec<Parameter<'a>>
 }
 
-impl Fallback {
+impl<'a> Fallback<'a> {
     pub fn get_condition(&self) -> FallCond {
         self.f_cond
     }
@@ -388,22 +446,23 @@ impl default::Default for FallCond {
 /// to the location of the string and the string length. Used 
 /// instead of an actual slice to get around the borrow checker.
 #[derive(Clone)]
-struct RSlice {
+struct RSlice<'a> {
     ptr: *const u8,
-    len: usize
+    len: usize,
+    life: PhantomData<&'a Shader<'a>>
 }
 
-impl RSlice {
-    fn from_str(s: &str) -> RSlice {
+impl<'a> RSlice<'a> {
+    fn from_str(s: &str) -> RSlice<'a> {
         RSlice::from_raw_parts(s.as_ptr(), s.len())
     }
 
     #[inline(always)]
-    fn from_raw_parts(ptr: *const u8, len: usize) -> RSlice {
-        RSlice{ptr: ptr, len: len}
+    fn from_raw_parts(ptr: *const u8, len: usize) -> RSlice<'a> {
+        RSlice{ptr: ptr, len: len, life: PhantomData}
     }
 
-    unsafe fn to_str(&self) -> &str {
+    unsafe fn to_str(&self) -> &'a str {
         use std::slice;
         use std::str;
 
@@ -413,13 +472,13 @@ impl RSlice {
     }
 }
 
-impl fmt::Display for RSlice {
+impl<'a> fmt::Display for RSlice<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "{}", unsafe{ self.to_str() })
     }
 }
 
-impl fmt::Debug for RSlice {
+impl<'a> fmt::Debug for RSlice<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         write!(f, "{:?}", unsafe{ self.to_str() })
     }
@@ -427,13 +486,14 @@ impl fmt::Debug for RSlice {
 
 // Warning: calling functions on this default value WILL crash your program.
 // Change the pointer from null to prevent this.
-impl default::Default for RSlice {
-    fn default() -> RSlice {
+impl<'a> default::Default for RSlice<'a> {
+    fn default() -> RSlice<'a> {
         use std::ptr;
 
         RSlice {
             ptr: ptr::null(),
-            len: 0
+            len: 0,
+            life: PhantomData
         }
     }
 }
